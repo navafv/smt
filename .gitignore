@@ -1,0 +1,13 @@
+venv
+__pycache__
+*.pyc
+*.pyo
+db.sqlite3
+staticfiles
+media
+.DS_Store
+.idea
+*.log
+*.env
+public
+assets

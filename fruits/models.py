@@ -158,6 +158,7 @@ class StockReturn(models.Model):
     ]
     
     product = models.ForeignKey(Product, on_delete=models.CASCADE)
+    supplier = models.ForeignKey(Supplier, on_delete=models.SET_NULL, null=True, blank=True, help_text="Required if return_type is 'supplier'")
     return_type = models.CharField(max_length=20, choices=RETURN_TYPES, db_index=True)
     quantity = models.DecimalField(max_digits=10, decimal_places=2)
     reason = models.TextField(blank=True)

@@ -67,31 +67,30 @@ def increase_stock_on_purchase(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender=StockReturn)
 def handle_stock_adjustment(sender, instance, created, **kwargs):
-    """Handle special adjustments (Wastage or Returns)."""
+    """Handle physical inventory and financial supplier adjustments."""
     if created:
-        product = instance.product # FIXED: Define the product variable
+        product = instance.product
         
-        # Determine Stock Change
-        if instance.return_type == 'customer':
-            change = instance.quantity # Stock In
-        else:
-            change = -instance.quantity # Stock Out (Wastage/Supplier Return)
+        # Determine Stock Change Direction
+        # Customer Return = Stock increases (Back in shop)
+        # Wastage/Supplier Return = Stock decreases (Leaves shop)
+        change = instance.quantity if instance.return_type == 'customer' else -instance.quantity
         
-        # 1. Update Inventory using the correct instance reference
+        # 1. ATOMIC INVENTORY UPDATE
+        # Using .update(F()) prevents lost updates if two sales happen at once
         product.__class__.objects.filter(pk=product.pk).update(
             stock_quantity=F('stock_quantity') + change
         )
 
-        # 2. Financial Logic for Supplier Returns
-        # If returning to supplier, reduce the balance we owe them
-        if instance.return_type == 'supplier' and hasattr(instance, 'supplier') and instance.supplier:
-            # We assume your StockReturn model has a 'supplier' and 'loss_amount' field
-            # If not, you might just be adjusting stock.
+        # 2. FINANCIAL LOGIC FOR SUPPLIER RETURNS (Fixed Branch)
+        # Only fire if it's a supplier return and the supplier is linked
+        if instance.return_type == 'supplier' and instance.supplier:
+            # We owe the supplier LESS now, so we subtract from balance
             instance.supplier.__class__.objects.filter(pk=instance.supplier.pk).update(
                 balance=F('balance') - instance.loss_amount
             )
             
-        logger.info(f"Stock adjusted for {product.name}: {instance.return_type}")
+        logger.info(f"SMT Stock Sync | {product.name} | Type: {instance.return_type}")
 
 # ==========================================
 # 3. DELETION RECOVERY (Cleanup)

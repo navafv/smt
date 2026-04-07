@@ -1,34 +1,8 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  Receipt,
-  Plus,
-  Trash2,
-  Search,
-  Wallet,
-  ArrowDownRight,
-  Calendar,
-  Tag,
-  X,
-  Loader2,
-  TrendingDown,
-  Info,
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Loader2, Plus, Receipt, Search, Trash2, X } from "lucide-react";
 import api from "../api";
 import toast from "react-hot-toast";
-
-// Helper for category-specific icons
-const getCategoryIcon = (category) => {
-  switch (category) {
-    case "rent":
-      return <Wallet size={20} />;
-    case "electricity":
-      return <Info size={20} />;
-    case "transport":
-      return <TrendingDown size={20} />;
-    default:
-      return <Receipt size={20} />;
-  }
-};
+import { formatCurrencyINR } from "../utils/currency";
 
 export default function Expenses() {
   const [expenses, setExpenses] = useState([]);
@@ -36,7 +10,6 @@ export default function Expenses() {
   const [showForm, setShowForm] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-
   const [formData, setFormData] = useState({
     title: "",
     category: "other",
@@ -50,7 +23,7 @@ export default function Expenses() {
       const res = await api.get("/expenses/");
       setExpenses(res.data);
     } catch {
-      toast.error("Failed to load expense records.");
+      toast.error("Failed to load expenses");
     } finally {
       setLoading(false);
     }
@@ -60,199 +33,176 @@ export default function Expenses() {
     fetchExpenses();
   }, []);
 
-  const filteredExpenses = useMemo(() => {
-    return expenses.filter((exp) =>
-      exp.title.toLowerCase().includes(searchTerm.toLowerCase()),
-    );
-  }, [searchTerm, expenses]);
+  const filteredExpenses = useMemo(
+    () =>
+      expenses.filter((expense) =>
+        expense.title.toLowerCase().includes(searchTerm.toLowerCase()),
+      ),
+    [expenses, searchTerm],
+  );
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    if (!formData.amount || Number(formData.amount) <= 0)
-      return toast.error("Enter a valid amount.");
+  const totalExpenses = useMemo(
+    () => expenses.reduce((sum, expense) => sum + Number(expense.amount), 0),
+    [expenses],
+  );
+
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!formData.amount || Number(formData.amount) <= 0) {
+      toast.error("Enter valid amount");
+      return;
+    }
 
     setIsSubmitting(true);
+
     try {
       await api.post("/expenses/", formData);
-      toast.success("Expense recorded successfully.");
+      toast.success("Expense recorded");
       setShowForm(false);
       setFormData({ title: "", category: "other", amount: "", note: "" });
       fetchExpenses();
     } catch {
-      toast.error("Failed to save expense.");
+      toast.error("Failed to save expense");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const deleteExpense = async (id) => {
-    if (window.confirm("Permanently delete this expense record?")) {
-      try {
-        await api.delete(`/expenses/${id}/`);
-        toast.success("Record deleted.");
-        fetchExpenses();
-      } catch {
-        toast.error("Deletion failed.");
-      }
+    if (!window.confirm("Delete this expense?")) {
+      return;
+    }
+
+    try {
+      await api.delete(`/expenses/${id}/`);
+      toast.success("Deleted");
+      fetchExpenses();
+    } catch {
+      toast.error("Deletion failed");
     }
   };
 
-  const totalExpenses = useMemo(() => {
-    return expenses.reduce((sum, exp) => sum + Number(exp.amount), 0);
-  }, [expenses]);
-
   return (
-    <div className="space-y-6 p-4 md:p-0 pb-24">
-      {/* --- HEADER & SUMMARY --- */}
-      <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-4 pb-20">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-800 md:text-4xl">
-            Expenses
-          </h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-            Shop Overheads & Bills
-          </p>
+          <h1 className="text-xl font-bold text-gray-900">Expenses</h1>
+          <p className="text-sm text-gray-500">Track overheads</p>
         </div>
-
-        <div className="flex items-center gap-4 rounded-4xl border border-rose-100 bg-rose-50/50 p-4 pr-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-rose-600 text-white shadow-lg shadow-rose-200">
-            <TrendingDown size={24} />
-          </div>
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-rose-400">
-              Total Outflow
-            </p>
-            <p className="text-2xl font-black text-rose-600">
-              ₹{totalExpenses.toLocaleString("en-IN")}
-            </p>
-          </div>
+        <div className="rounded-xl bg-red-50 px-4 py-2">
+          <p className="text-xs text-gray-500">Total</p>
+          <p className="font-bold text-red-600">{formatCurrencyINR(totalExpenses)}</p>
         </div>
       </div>
 
       <button
         onClick={() => setShowForm(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-slate-900 py-4 font-black text-white shadow-xl transition-all hover:bg-black active:scale-95 md:w-auto md:px-8"
+        className="flex w-full items-center justify-center gap-2 rounded-xl bg-gray-900 py-3 font-medium text-white active:scale-98"
       >
-        <Plus size={20} /> RECORD NEW EXPENSE
+        <Plus size={18} />
+        Add Expense
       </button>
 
-      {/* --- SEARCH BAR --- */}
-      <div className="relative group">
+      <div className="relative">
         <Search
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-rose-500 transition-colors"
-          size={20}
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
         />
         <input
           type="text"
-          placeholder="Filter by title (e.g. Rent, Electricity)..."
-          className="w-full rounded-2xl border-2 border-slate-100 bg-white py-4 pl-12 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-rose-500 focus:ring-4 focus:ring-rose-50"
+          placeholder="Search expenses..."
+          className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(event) => setSearchTerm(event.target.value)}
         />
       </div>
 
-      {/* --- EXPENSE LIST --- */}
       {loading ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-4 text-slate-400">
-          <Loader2 className="animate-spin" size={40} />
-          <p className="font-bold uppercase tracking-tighter">
-            Calculating overheads...
-          </p>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-red-600" />
+        </div>
+      ) : filteredExpenses.length === 0 ? (
+        <div className="rounded-xl bg-gray-50 py-12 text-center">
+          <Receipt size={40} className="mx-auto text-gray-300" />
+          <p className="mt-2 text-gray-500">No expenses found</p>
         </div>
       ) : (
-        <div className="grid gap-3">
-          {filteredExpenses.map((exp) => (
+        <div className="space-y-3">
+          {filteredExpenses.map((expense) => (
             <div
-              key={exp.id}
-              className="group flex items-center justify-between rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:border-rose-100 hover:shadow-md"
+              key={expense.id}
+              className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
             >
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-50 text-slate-400 group-hover:bg-rose-50 group-hover:text-rose-500 transition-colors">
-                  {getCategoryIcon(exp.category)}
-                </div>
-                <div>
-                  <h3 className="font-black text-slate-800">{exp.title}</h3>
-                  <div className="flex items-center gap-3 mt-1">
-                    <span className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-black uppercase text-slate-500">
-                      <Tag size={10} /> {exp.category_display}
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <h3 className="font-semibold text-gray-900">{expense.title}</h3>
+                  <div className="mt-1 flex items-center gap-2">
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                      {expense.category_display}
                     </span>
-                    <span className="flex items-center gap-1 text-[10px] font-bold text-slate-400 uppercase">
-                      <Calendar size={10} /> {exp.date}
-                    </span>
+                    <span className="text-xs text-gray-400">{expense.date}</span>
                   </div>
+                  {expense.note && (
+                    <p className="mt-2 text-xs text-gray-500">{expense.note}</p>
+                  )}
                 </div>
-              </div>
-
-              <div className="flex items-center gap-6">
-                <p className="text-xl font-black text-slate-900">
-                  ₹{exp.amount}
-                </p>
-                <button
-                  onClick={() => deleteExpense(exp.id)}
-                  className="rounded-lg p-2 text-slate-200 transition-colors hover:bg-rose-50 hover:text-rose-500"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-red-600">
+                    {formatCurrencyINR(expense.amount)}
+                  </p>
+                  <button
+                    onClick={() => deleteExpense(expense.id)}
+                    className="mt-2 flex h-8 w-8 items-center justify-center rounded-lg text-gray-400 active:bg-red-50 active:text-red-500"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                </div>
               </div>
             </div>
           ))}
-
-          {filteredExpenses.length === 0 && (
-            <div className="py-20 text-center">
-              <p className="font-bold text-slate-300 italic">
-                No matching expenses recorded.
-              </p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* --- MODAL FORM --- */}
       {showForm && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md animate-in zoom-in-95 duration-200 bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-            <div className="bg-rose-600 p-6 flex justify-between items-center text-white">
-              <div className="flex items-center gap-3">
-                <ArrowDownRight className="text-rose-200" />
-                <h2 className="text-lg font-black uppercase tracking-tight">
-                  Record Expense
-                </h2>
-              </div>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+          <div className="animate-slide-up w-full max-w-md rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 p-4">
+              <h2 className="font-bold text-gray-900">Add Expense</h2>
               <button
                 onClick={() => setShowForm(false)}
-                className="hover:rotate-90 transition-transform"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
               >
-                <X size={24} />
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-8 space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-                  Expense Title
+            <form onSubmit={handleSubmit} className="space-y-4 p-4">
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Title
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Electricity Bill, Shop Rent"
-                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-bold text-slate-700 outline-none focus:border-rose-500 focus:bg-white"
+                  placeholder="e.g., Electricity Bill"
+                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
                   value={formData.title}
-                  onChange={(e) =>
-                    setFormData({ ...formData, title: e.target.value })
+                  onChange={(event) =>
+                    setFormData({ ...formData, title: event.target.value })
                   }
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
                     Category
                   </label>
                   <select
-                    className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-bold text-slate-700 outline-none focus:border-rose-500 appearance-none"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
                     value={formData.category}
-                    onChange={(e) =>
-                      setFormData({ ...formData, category: e.target.value })
+                    onChange={(event) =>
+                      setFormData({ ...formData, category: event.target.value })
                     }
                   >
                     <option value="rent">Rent</option>
@@ -263,56 +213,56 @@ export default function Expenses() {
                     <option value="other">Other</option>
                   </select>
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-                    Amount
+                <div>
+                  <label className="mb-1 block text-sm font-medium text-gray-700">
+                    Amount (Rs)
                   </label>
                   <input
                     type="number"
                     required
                     step="0.01"
                     placeholder="0.00"
-                    className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-black text-rose-600 outline-none focus:border-rose-500"
+                    className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
                     value={formData.amount}
-                    onChange={(e) =>
-                      setFormData({ ...formData, amount: e.target.value })
+                    onChange={(event) =>
+                      setFormData({ ...formData, amount: event.target.value })
                     }
                   />
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-                  Notes
+              <div>
+                <label className="mb-1 block text-sm font-medium text-gray-700">
+                  Note (Optional)
                 </label>
                 <textarea
                   placeholder="Additional details..."
-                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-bold text-slate-700 outline-none focus:border-rose-500"
-                  rows="2"
+                  rows={2}
+                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red-500 focus:ring-2 focus:ring-red-100"
                   value={formData.note}
-                  onChange={(e) =>
-                    setFormData({ ...formData, note: e.target.value })
+                  onChange={(event) =>
+                    setFormData({ ...formData, note: event.target.value })
                   }
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowForm(false)}
-                  className="flex-1 py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 rounded-2xl"
+                  className="flex-1 rounded-xl border border-gray-200 py-3 font-medium text-gray-600 active:bg-gray-50"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-2 py-4 bg-rose-600 text-white rounded-2xl font-black uppercase tracking-widest shadow-lg shadow-rose-100 disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center rounded-xl bg-red-600 py-3 font-medium text-white active:scale-98 disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <Loader2 className="animate-spin mx-auto" size={20} />
+                    <Loader2 size={18} className="animate-spin" />
                   ) : (
-                    "Record Outflow"
+                    "Save"
                   )}
                 </button>
               </div>

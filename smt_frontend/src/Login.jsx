@@ -1,15 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
-import {
-  Store,
-  Lock,
-  User,
-  Eye,
-  EyeOff,
-  Loader2,
-  ShieldCheck,
-} from "lucide-react";
+import { Store, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
 export default function Login() {
@@ -21,26 +13,22 @@ export default function Login() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Redirect calculation: where was the user trying to go?
-  const from = location.state?.from?.pathname || "/";
+  const from = location.state?.from?.pathname || "/dashboard";
   const queryParams = new URLSearchParams(location.search);
   const isSessionExpired = queryParams.get("session") === "expired";
 
-  // 1. Guard: Redirect authenticated users away from login
+  // Redirect if already logged in
   useEffect(() => {
     if (user) navigate(from, { replace: true });
   }, [user, navigate, from]);
 
-  // 2. Alert: Handle external triggers (like Axios interceptors)
+  // Show session expired message
   useEffect(() => {
     if (isSessionExpired) {
-      toast.error("Session expired. Please re-authenticate.", {
-        id: "auth-exp",
-      });
+      toast.error("Session expired. Please login again");
     }
   }, [isSessionExpired]);
 
-  // 3. Optimized Change Handler
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;
     setCreds((prev) => ({ ...prev, [name]: value }));
@@ -54,101 +42,99 @@ export default function Login() {
     try {
       await login(creds.username, creds.password, from);
     } catch {
-      // Backend errors are surfaced by AuthContext.
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-6 py-12 selection:bg-emerald-100">
-      <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
-        {/* Branding Header */}
-        <div className="mb-10 text-center">
-          <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-4xl bg-emerald-600 text-white shadow-2xl shadow-emerald-200">
-            <Store size={40} />
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-5">
+      <div className="w-full max-w-md">
+        {/* Logo & Brand */}
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <Store size={36} className="text-white" />
           </div>
-          <h2 className="text-4xl font-black tracking-tight text-slate-800">
-            SMT FRUITS
-          </h2>
-          <p className="mt-2 text-sm font-bold uppercase tracking-widest text-slate-400">
-            Secure Terminal Access
-          </p>
+          <h1 className="text-2xl font-bold text-gray-900">SMT Fruits</h1>
+          <p className="text-sm text-gray-500 mt-1">Shop Management System</p>
         </div>
 
-        {/* Login Card */}
-        <div className="overflow-hidden rounded-[2.5rem] border border-slate-100 bg-white p-10 shadow-2xl shadow-slate-200/60">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="space-y-2">
-              <label className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Operator ID
+        {/* Login Form */}
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            {/* Username Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Username
               </label>
-              <div className="relative group">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
-                  <User size={18} />
-                </div>
+              <div className="relative">
+                <User
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
                 <input
                   name="username"
                   type="text"
                   required
                   autoFocus
-                  placeholder="Enter username"
-                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-4 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
+                  placeholder="Enter your username"
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none transition-all"
                   value={creds.username}
                   onChange={handleChange}
                 />
               </div>
             </div>
 
-            <div className="space-y-2">
-              <label className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                Access Key
+            {/* Password Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Password
               </label>
-              <div className="relative group">
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400 group-focus-within:text-emerald-600 transition-colors">
-                  <Lock size={18} />
-                </div>
+              <div className="relative">
+                <Lock
+                  size={18}
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                />
                 <input
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="••••••••"
-                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-4 pl-11 pr-12 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
+                  placeholder="Enter your password"
+                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none transition-all"
                   value={creds.password}
                   onChange={handleChange}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-4 text-slate-400 hover:text-emerald-600 transition-colors"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
+            {/* Submit Button */}
             <button
+              type="submit"
               disabled={isSubmitting}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-emerald-600 py-5 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-emerald-100 transition-all hover:bg-emerald-700 active:scale-95 disabled:opacity-70"
+              className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold active:scale-98 transition-all disabled:opacity-70 flex items-center justify-center gap-2 mt-6"
             >
               {isSubmitting ? (
-                <Loader2 className="animate-spin" size={20} />
-              ) : (
                 <>
-                  <ShieldCheck size={20} />
-                  <span>Authenticate</span>
+                  <Loader2 size={18} className="animate-spin" />
+                  <span>Logging in...</span>
                 </>
+              ) : (
+                <span>Login</span>
               )}
             </button>
           </form>
         </div>
 
-        {/* Footer */}
-        <div className="mt-12 text-center">
-          <div className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-4 py-2 text-[10px] font-black uppercase tracking-tighter text-slate-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            System Online: SMT-OS v2.4
-          </div>
-        </div>
+        {/* Footer Note */}
+        <p className="text-center text-xs text-gray-400 mt-6">
+          Secure access only
+        </p>
       </div>
     </div>
   );

@@ -18,10 +18,9 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
     price_per_unit: "",
     unit: "kg",
     stock_quantity: "",
-    low_stock_threshold: "5", // Sensible default
+    low_stock_threshold: "5",
   });
 
-  // Populate form if editing
   useEffect(() => {
     if (product) {
       setFormData({
@@ -42,7 +41,6 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Basic Frontend Validation
     if (Number(formData.price_per_unit) <= 0) {
       return toast.error("Price must be greater than zero");
     }
@@ -51,157 +49,150 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
     try {
       if (product) {
         await api.put(`/products/${product.id}/`, formData);
-        toast.success(`${formData.name} updated successfully`);
+        toast.success(`${formData.name} updated`);
       } else {
         await api.post("/products/", formData);
-        toast.success(`${formData.name} added to inventory`);
+        toast.success(`${formData.name} added`);
       }
       onSuccess();
-    } catch (err) {
-      const serverError = err.response?.data;
-      // Handle specific Django validation errors if they exist
-      toast.error(
-        typeof serverError === "string"
-          ? serverError
-          : "Failed to save product details.",
-      );
+    } catch {
+      toast.error("Failed to save product");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const InputGroup = ({ label, icon: Icon, children }) => (
-    <div className="space-y-1.5">
-      <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-        {label}
-      </label>
-      <div className="relative">
-        <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-4 text-slate-400">
-          <Icon size={18} />
-        </div>
-        {children}
-      </div>
-    </div>
-  );
-
   return (
-    <div className="w-full bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-      {/* Header */}
-      <div className="bg-slate-900 p-6 flex justify-between items-center">
-        <div className="flex items-center gap-3">
-          <div className="p-2 bg-emerald-500/20 rounded-lg text-emerald-400">
-            <Package size={20} />
-          </div>
-          <h2 className="text-lg font-black text-white uppercase tracking-tight">
-            {product ? "Edit Inventory Item" : "New Inventory Item"}
+    <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+      <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md sm:max-w-lg animate-slide-up">
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-gray-100">
+          <h2 className="font-bold text-gray-900">
+            {product ? "Edit Product" : "Add Product"}
           </h2>
-        </div>
-        <button
-          onClick={onCancel}
-          className="text-slate-400 hover:text-white transition-colors"
-        >
-          <X size={24} />
-        </button>
-      </div>
-
-      <form onSubmit={handleSubmit} className="p-8 space-y-6">
-        {/* Product Name */}
-        <InputGroup label="Fruit Name" icon={Package}>
-          <input
-            type="text"
-            name="name"
-            required
-            placeholder="e.g. Alphonso Mango"
-            className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
-            value={formData.name}
-            onChange={handleChange}
-          />
-        </InputGroup>
-
-        {/* Price and Unit Row */}
-        <div className="grid grid-cols-2 gap-4">
-          <InputGroup label="Unit Price" icon={IndianRupee}>
-            <input
-              type="number"
-              name="price_per_unit"
-              required
-              step="0.01"
-              placeholder="0.00"
-              className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
-              value={formData.price_per_unit}
-              onChange={handleChange}
-            />
-          </InputGroup>
-
-          <InputGroup label="Measure Unit" icon={Scale}>
-            <select
-              name="unit"
-              className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50 appearance-none"
-              value={formData.unit}
-              onChange={handleChange}
-            >
-              <option value="kg">Kilogram (kg)</option>
-              <option value="pcs">Pieces (pcs)</option>
-              <option value="box">Box</option>
-              <option value="gm">Gram (gm)</option>
-            </select>
-          </InputGroup>
-        </div>
-
-        {/* Stock and Threshold Row */}
-        <div className="grid grid-cols-2 gap-4">
-          <InputGroup label="Opening Stock" icon={Package}>
-            <input
-              type="number"
-              name="stock_quantity"
-              required
-              step="0.01"
-              placeholder="0"
-              className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
-              value={formData.stock_quantity}
-              onChange={handleChange}
-            />
-          </InputGroup>
-
-          <InputGroup label="Low Stock Alert" icon={AlertTriangle}>
-            <input
-              type="number"
-              name="low_stock_threshold"
-              required
-              step="0.01"
-              placeholder="5"
-              className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
-              value={formData.low_stock_threshold}
-              onChange={handleChange}
-            />
-          </InputGroup>
-        </div>
-
-        {/* Form Actions */}
-        <div className="flex gap-3 pt-4">
           <button
-            type="button"
             onClick={onCancel}
-            className="flex-1 rounded-2xl border-2 border-slate-100 py-4 text-sm font-black uppercase tracking-widest text-slate-400 transition-all hover:bg-slate-50 active:scale-95"
+            className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-100 active:bg-gray-200"
           >
-            Cancel
-          </button>
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="flex-2 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 text-sm font-black uppercase tracking-widest text-white shadow-xl shadow-emerald-100 transition-all hover:bg-emerald-700 disabled:opacity-50 active:scale-95"
-          >
-            {isSubmitting ? (
-              <Loader2 className="animate-spin" size={20} />
-            ) : (
-              <>
-                <Save size={18} />
-                <span>{product ? "Update Fruit" : "Save to Inventory"}</span>
-              </>
-            )}
+            <X size={18} />
           </button>
         </div>
-      </form>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-4 space-y-4">
+          {/* Product Name */}
+          <div>
+            <label className="text-sm font-medium text-gray-700 mb-1 block">
+              Product Name
+            </label>
+            <input
+              type="text"
+              name="name"
+              required
+              placeholder="e.g., Apple, Banana, Orange"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+              value={formData.name}
+              onChange={handleChange}
+            />
+          </div>
+
+          {/* Price and Unit */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Price (₹)
+              </label>
+              <input
+                type="number"
+                name="price_per_unit"
+                required
+                step="0.01"
+                placeholder="0.00"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+                value={formData.price_per_unit}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Unit
+              </label>
+              <select
+                name="unit"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+                value={formData.unit}
+                onChange={handleChange}
+              >
+                <option value="kg">Kilogram (kg)</option>
+                <option value="pcs">Pieces (pcs)</option>
+                <option value="box">Box</option>
+                <option value="gm">Gram (gm)</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Stock and Threshold */}
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Stock
+              </label>
+              <input
+                type="number"
+                name="stock_quantity"
+                required
+                step="0.01"
+                placeholder="0"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+                value={formData.stock_quantity}
+                onChange={handleChange}
+              />
+            </div>
+
+            <div>
+              <label className="text-sm font-medium text-gray-700 mb-1 block">
+                Low Stock Alert
+              </label>
+              <input
+                type="number"
+                name="low_stock_threshold"
+                required
+                step="0.01"
+                placeholder="5"
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+                value={formData.low_stock_threshold}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex gap-3 pt-4">
+            <button
+              type="button"
+              onClick={onCancel}
+              className="flex-1 py-3 rounded-xl border border-gray-200 font-medium text-gray-600 active:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex-1 bg-green-600 text-white py-3 rounded-xl font-medium flex items-center justify-center gap-2 active:scale-98 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <Loader2 size={18} className="animate-spin" />
+              ) : (
+                <>
+                  <Save size={18} />
+                  {product ? "Update" : "Save"}
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }

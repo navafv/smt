@@ -139,7 +139,7 @@ export const AuthProvider = ({ children }) => {
     };
   }, [clearRefreshTimer, navigate]);
 
-  const login = async (username, password, redirectTo = "/") => {
+  const login = async (username, password, redirectTo = "/dashboard") => {
     try {
       const res = await api.post("/auth/login/", { username, password });
       setupUserFromToken(res.data.access);

@@ -1,127 +1,312 @@
 @import "tailwindcss";
 
-/* --- 1. THEME DEFINITION --- */
+/* Mobile-First Theme - Clean & Simple */
 @theme {
-  /* SMT Fruits Core Brand Palette */
-  --color-emerald-50: #ecfdf5;
-  --color-emerald-100: #d1fae5;
-  --color-emerald-500: #10b981;
-  --color-emerald-600: #059669;
-  --color-emerald-700: #047857;
+  /* Brand Colors - SMT Fruits */
+  --color-primary: #059669;
+  --color-primary-light: #10b981;
+  --color-primary-dark: #047857;
 
-  --color-rose-50: #fff1f2;
-  --color-rose-500: #f43f5e;
-  --color-rose-600: #e11d48;
+  /* Status Colors */
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+  --color-danger: #ef4444;
+  --color-info: #3b82f6;
 
-  --color-slate-50: #f8fafc;
-  --color-slate-100: #f1f5f9;
-  --color-slate-200: #e2e8f0;
-  --color-slate-500: #64748b;
-  --color-slate-600: #475569;
-  --color-slate-900: #0f172a;
+  /* Neutral Colors */
+  --color-gray-50: #f9fafb;
+  --color-gray-100: #f3f4f6;
+  --color-gray-200: #e5e7eb;
+  --color-gray-300: #d1d5db;
+  --color-gray-500: #6b7280;
+  --color-gray-700: #374151;
+  --color-gray-900: #111827;
 
   /* Typography */
-  --font-sans: "Plus Jakarta Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans:
+    "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 
-  /* Shadows */
-  --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
-
-  /* POS-friendly sizing */
-  --radius-smt-card: 2rem;
-  --radius-smt-control: 1.25rem;
-  --spacing-touch: 2.75rem;
+  /* Mobile-Friendly Spacing */
+  --spacing-safe: env(safe-area-inset-top);
+  --radius-card: 1rem;
+  --radius-button: 0.75rem;
+  --touch-target: 2.75rem;
 }
 
-/* --- 2. GLOBAL RESET & BASE --- */
+/* Base Styles */
 @layer base {
+  * {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+  }
+
   html {
     -webkit-tap-highlight-color: transparent;
     scroll-behavior: smooth;
   }
 
   body {
-    @apply bg-slate-50 text-slate-900 antialiased;
-    font-feature-settings: "cv02", "cv03", "cv04", "ss01";
+    background-color: #f9fafb;
+    color: #111827;
+    font-family:
+      "Inter",
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 
+  /* Better Touch Targets for Mobile */
   button,
   [role="button"],
-  a,
+  a {
+    min-height: var(--touch-target);
+    cursor: pointer;
+    touch-action: manipulation;
+  }
+
+  /* Simple Focus States */
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible {
+    outline: 2px solid #059669;
+    outline-offset: 2px;
+  }
+
+  /* Form Elements Mobile Optimization */
   input,
   select,
   textarea {
-    @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 focus-visible:ring-offset-2;
+    font-size: 16px; /* Prevents zoom on iOS */
   }
 
-  /* Standardizing form element appearance */
+  /* Remove Number Input Spinners */
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
     -webkit-appearance: none;
     margin: 0;
   }
+
+  input[type="number"] {
+    -moz-appearance: textfield;
+  }
 }
 
-/* --- 3. COMPONENT SHORTCUTS --- */
+/* Reusable Component Classes */
 @layer components {
-  /* Senior Move: Standardizing the "Squircle" cards used throughout SMT */
-  .smt-card {
-    @apply rounded-[var(--radius-smt-card)] border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-md md:p-8;
+  /* Cards - Simple & Clean */
+  .card {
+    background: white;
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition:
+      transform 0.1s ease,
+      box-shadow 0.1s ease;
   }
 
-  .smt-panel {
-    @apply rounded-[var(--radius-smt-card)] border border-slate-100 bg-white shadow-sm;
+  .card:active {
+    transform: scale(0.98);
   }
 
-  .smt-kpi {
-    @apply rounded-[1.75rem] border border-slate-100 bg-gradient-to-br from-white via-white to-emerald-50/40 p-5 shadow-sm;
+  /* Touch-Friendly Buttons */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.75rem 1.5rem;
+    border-radius: 0.75rem;
+    font-weight: 600;
+    transition: all 0.1s ease;
+    touch-action: manipulation;
   }
 
-  .smt-icon-button {
-    @apply flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-emerald-200 hover:text-emerald-600;
+  .btn-primary {
+    background-color: #059669;
+    color: white;
   }
 
-  .smt-touch-target {
-    @apply min-h-11 min-w-11;
+  .btn-primary:active {
+    background-color: #047857;
+    transform: scale(0.97);
   }
 
-  .smt-field-label {
-    @apply mb-2 block text-xs font-bold tracking-wide text-slate-600;
+  .btn-secondary {
+    background-color: #f3f4f6;
+    color: #374151;
   }
 
-  /* Optimized scrollbar for POS item grids */
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
+  .btn-secondary:active {
+    background-color: #e5e7eb;
+    transform: scale(0.97);
   }
-  .scrollbar-hide {
+
+  /* Form Fields */
+  .input {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    font-size: 1rem;
+    transition: border-color 0.1s ease;
+  }
+
+  .input:focus {
+    border-color: #059669;
+    outline: none;
+  }
+
+  /* KPI Cards for Dashboard */
+  .kpi {
+    background: white;
+    border-radius: 1rem;
+    padding: 1rem;
+    text-align: center;
+  }
+
+  .kpi-value {
+    font-size: 1.875rem;
+    font-weight: 700;
+    color: #059669;
+  }
+
+  .kpi-label {
+    font-size: 0.875rem;
+    color: #6b7280;
+    margin-top: 0.25rem;
+  }
+
+  /* Bottom Navigation */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top: 1px solid #e5e7eb;
+    padding: 0.5rem 1rem;
+    padding-bottom: calc(0.5rem + env(safe-area-inset-bottom));
+    display: flex;
+    justify-content: space-around;
+    z-index: 50;
+  }
+
+  .bottom-nav-link {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem;
+    border-radius: 0.75rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: #6b7280;
+    transition: color 0.1s ease;
+  }
+
+  .bottom-nav-link.active {
+    color: #059669;
+  }
+
+  .bottom-nav-link:active {
+    transform: scale(0.95);
+  }
+
+  /* Safe Area Support for Notch Devices */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  /* Utility Classes */
+  .touch-target {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+
+  .hide-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
+
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
 }
 
-/* --- 4. ANIMATION OVERRIDES --- */
-/* Ensure our "animate-in" transitions look professional, not jumpy */
-.animate-in {
-  animation-duration: 300ms;
-  animation-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+/* Animations - Simple & Fast */
+@layer utilities {
+  .animate-slide-up {
+    animation: slideUp 0.2s ease-out;
+  }
+
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      transform: translateY(10px);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
 }
 
-/* --- 5. PRINT OPTIMIZATION --- */
-/* Essential for Thermal Receipt printing */
+/* Print Styles for Receipts */
 @media print {
   body * {
     visibility: hidden;
   }
-  #root, #root * {
-    visibility: hidden;
-  }
-  /* Only show the modal content when printing */
-  .print-only, .print-only * {
+
+  .print-area,
+  .print-area * {
     visibility: visible;
   }
-  .print-only {
+
+  .print-area {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
+  }
+
+  button,
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* Responsive Adjustments */
+@media (min-width: 768px) {
+  .bottom-nav {
+    display: none; /* Hide bottom nav on tablets/desktop */
+  }
+
+  .card {
+    padding: 1.5rem;
+  }
+
+  .btn {
+    padding: 0.5rem 1rem;
   }
 }

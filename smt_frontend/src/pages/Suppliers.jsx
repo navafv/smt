@@ -1,17 +1,13 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  Truck,
-  X,
-  Plus,
-  Wallet,
-  Search,
-  Phone,
-  MapPin,
-  Loader2,
-  IndianRupee,
-  ArrowUpRight,
-  ChevronRight,
   Building2,
+  Loader2,
+  Phone,
+  Plus,
+  Search,
+  Truck,
+  Wallet,
+  X,
 } from "lucide-react";
 import api from "../api";
 import toast from "react-hot-toast";
@@ -20,8 +16,6 @@ export default function Suppliers() {
   const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Modal & Form States
   const [showAddModal, setShowAddModal] = useState(false);
   const [showPayModal, setShowPayModal] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -38,7 +32,7 @@ export default function Suppliers() {
       const res = await api.get("/suppliers/");
       setSuppliers(res.data);
     } catch {
-      toast.error("Failed to sync supplier records.");
+      toast.error("Failed to load suppliers");
     } finally {
       setLoading(false);
     }
@@ -48,37 +42,42 @@ export default function Suppliers() {
     fetchSuppliers();
   }, []);
 
-  // Search logic
-  const filteredSuppliers = useMemo(() => {
-    return suppliers.filter(
-      (s) =>
-        s.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        s.contact_number.includes(searchTerm),
-    );
-  }, [searchTerm, suppliers]);
+  const filteredSuppliers = useMemo(
+    () =>
+      suppliers.filter(
+        (supplier) =>
+          supplier.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          supplier.contact_number.includes(searchTerm),
+      ),
+    [searchTerm, suppliers],
+  );
 
-  const handleAdd = async (e) => {
-    e.preventDefault();
+  const handleAdd = async (event) => {
+    event.preventDefault();
     setIsSubmitting(true);
+
     try {
       await api.post("/suppliers/", formData);
-      toast.success(`${formData.name} added as a partner!`);
+      toast.success(`${formData.name} added`);
       setShowAddModal(false);
       setFormData({ name: "", contact_number: "", address: "" });
       fetchSuppliers();
     } catch {
-      toast.error("Could not register supplier.");
+      toast.error("Failed to add supplier");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handlePayment = async (e) => {
-    e.preventDefault();
-    if (!payAmount || Number(payAmount) <= 0)
-      return toast.error("Enter a valid amount.");
+  const handlePayment = async (event) => {
+    event.preventDefault();
+    if (!payAmount || Number(payAmount) <= 0) {
+      toast.error("Enter valid amount");
+      return;
+    }
 
     setIsSubmitting(true);
+
     try {
       await api.post("/supplier-payments/", {
         supplier: showPayModal.id,
@@ -91,179 +90,184 @@ export default function Suppliers() {
       setPayAmount("");
       fetchSuppliers();
     } catch {
-      toast.error("Payment sync failed.");
+      toast.error("Payment failed");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-6 p-4 md:p-0 pb-24">
-      {/* --- HEADER --- */}
-      <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+    <div className="space-y-4 pb-20">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-800 md:text-4xl">
-            Suppliers
-          </h1>
-          <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-            {suppliers.length} Active Partners
-          </p>
+          <h1 className="text-xl font-bold text-gray-900">Suppliers</h1>
+          <p className="text-sm text-gray-500">{suppliers.length} partners</p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-6 py-3.5 font-black text-white shadow-lg shadow-slate-200 transition-all hover:bg-black active:scale-95"
+          className="h-11 px-4 bg-gray-900 text-white rounded-xl font-medium flex items-center gap-2 active:scale-98"
         >
-          <Plus size={20} />
-          <span>NEW SUPPLIER</span>
+          <Plus size={18} />
+          Add
         </button>
       </div>
 
-      {/* --- SEARCH BAR --- */}
-      <div className="relative group">
+      {/* Search Bar */}
+      <div className="relative">
         <Search
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-emerald-500 transition-colors"
-          size={20}
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
         />
         <input
           type="text"
-          placeholder="Search by vendor name or contact..."
-          className="w-full rounded-2xl border-2 border-slate-100 bg-white py-4 pl-12 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50"
+          placeholder="Search by name or contact..."
+          className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(event) => setSearchTerm(event.target.value)}
         />
       </div>
 
-      {/* --- SUPPLIER GRID --- */}
+      {/* Suppliers List */}
       {loading ? (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {[1, 2, 3].map((i) => (
-            <div
-              key={i}
-              className="h-56 animate-pulse rounded-4xl bg-slate-100"
-            />
-          ))}
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-green-600" />
+        </div>
+      ) : filteredSuppliers.length === 0 ? (
+        <div className="text-center py-12 bg-gray-50 rounded-xl">
+          <Building2 size={40} className="text-gray-300 mx-auto" />
+          <p className="text-gray-500 mt-2">No suppliers found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-          {filteredSuppliers.map((s) => (
+        <div className="space-y-3">
+          {filteredSuppliers.map((supplier) => (
             <div
-              key={s.id}
-              className="group relative overflow-hidden rounded-4xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-xl hover:shadow-slate-200/50"
+              key={supplier.id}
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-100"
             >
               <div className="flex items-start justify-between">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-500 group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
-                  <Building2 size={24} />
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <div className="h-8 w-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                      <Building2 size={16} className="text-gray-500" />
+                    </div>
+                    <h3 className="font-semibold text-gray-900">
+                      {supplier.name}
+                    </h3>
+                  </div>
+                  <p className="text-sm text-gray-600 mt-2 flex items-center gap-1">
+                    <Phone size={12} />
+                    {supplier.contact_number}
+                  </p>
+                  {supplier.address && (
+                    <p className="text-xs text-gray-400 mt-1">
+                      {supplier.address}
+                    </p>
+                  )}
                 </div>
                 <div className="text-right">
-                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                    Total Payable
-                  </p>
+                  <p className="text-xs text-gray-500">Balance</p>
                   <p
-                    className={`text-2xl font-black ${Number(s.balance) > 0 ? "text-amber-600" : "text-emerald-600"}`}
+                    className={`text-lg font-bold ${Number(supplier.balance) > 0 ? "text-amber-600" : "text-green-600"}`}
                   >
-                    ₹{s.balance}
+                    ₹{parseFloat(supplier.balance).toLocaleString()}
                   </p>
                 </div>
-              </div>
-
-              <div className="mt-4">
-                <h3 className="text-xl font-black text-slate-800">{s.name}</h3>
-                <p className="flex items-center gap-2 text-sm font-bold text-slate-400 mt-1">
-                  <Phone size={14} /> {s.contact_number}
-                </p>
-                {s.address && (
-                  <p className="flex items-center gap-2 text-xs font-medium text-slate-400 mt-2 italic truncate">
-                    <MapPin size={12} /> {s.address}
-                  </p>
-                )}
               </div>
 
               <button
-                onClick={() => setShowPayModal(s)}
-                className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-amber-50 py-3 font-black text-xs uppercase tracking-widest text-amber-700 transition-all hover:bg-amber-600 hover:text-white"
+                onClick={() => setShowPayModal(supplier)}
+                className="w-full mt-3 py-2 bg-amber-50 rounded-xl text-sm font-medium text-amber-700 flex items-center justify-center gap-2 active:bg-amber-100"
               >
-                <Wallet size={16} /> RECORD SETTLEMENT
+                <Wallet size={14} />
+                Record Payment
               </button>
             </div>
           ))}
         </div>
       )}
 
-      {/* --- MODAL: ADD SUPPLIER --- */}
+      {/* Add Supplier Modal */}
       {showAddModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-md animate-in zoom-in-95 duration-200 bg-white rounded-[2.5rem] shadow-2xl overflow-hidden border border-slate-100">
-            <div className="bg-slate-900 p-6 flex justify-between items-center text-white">
-              <div className="flex items-center gap-3">
-                <Truck className="text-emerald-400" />
-                <h2 className="text-lg font-black uppercase tracking-tight">
-                  New Partner
-                </h2>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md animate-slide-up">
+            <div className="flex items-center justify-between p-4 border-b border-gray-100">
+              <div className="flex items-center gap-2">
+                <Truck size={18} className="text-green-600" />
+                <h2 className="font-bold text-gray-900">Add Supplier</h2>
               </div>
-              <button onClick={() => setShowAddModal(false)}>
-                <X size={24} />
+              <button
+                onClick={() => setShowAddModal(false)}
+                className="h-10 w-10 flex items-center justify-center rounded-xl bg-gray-100"
+              >
+                <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAdd} className="p-8 space-y-5">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-                  Vendor Name
+            <form onSubmit={handleAdd} className="p-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Supplier Name
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="e.g. Kerala Fruit Hub"
-                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
-                  onChange={(e) =>
-                    setFormData({ ...formData, name: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-                  Contact Number
-                </label>
-                <input
-                  type="text"
-                  placeholder="Supplier phone..."
-                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
-                  onChange={(e) =>
-                    setFormData({ ...formData, contact_number: e.target.value })
-                  }
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase tracking-widest text-slate-400 px-1">
-                  Office Address
-                </label>
-                <textarea
-                  placeholder="Full location..."
-                  className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-bold text-slate-700 outline-none focus:border-emerald-500 focus:bg-white"
-                  rows="2"
-                  onChange={(e) =>
-                    setFormData({ ...formData, address: e.target.value })
+                  placeholder="e.g., Kerala Fruit Hub"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+                  onChange={(event) =>
+                    setFormData({ ...formData, name: event.target.value })
                   }
                 />
               </div>
 
-              <div className="flex gap-3 pt-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Contact Number
+                </label>
+                <input
+                  type="tel"
+                  placeholder="Phone number"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      contact_number: event.target.value,
+                    })
+                  }
+                />
+              </div>
+
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Address (Optional)
+                </label>
+                <textarea
+                  placeholder="Full address"
+                  rows={2}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none resize-none"
+                  onChange={(event) =>
+                    setFormData({ ...formData, address: event.target.value })
+                  }
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 py-4 text-xs font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 rounded-2xl"
+                  className="flex-1 py-3 rounded-xl border border-gray-200 font-medium text-gray-600 active:bg-gray-50"
                 >
-                  Dismiss
+                  Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex-1 py-4 bg-emerald-600 text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-lg disabled:opacity-50"
+                  className="flex-1 bg-green-600 text-white py-3 rounded-xl font-medium flex items-center justify-center active:scale-98 disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <Loader2 className="animate-spin mx-auto" size={20} />
+                    <Loader2 size={18} className="animate-spin" />
                   ) : (
-                    "Save Supplier"
+                    "Save"
                   )}
                 </button>
               </div>
@@ -272,58 +276,50 @@ export default function Suppliers() {
         </div>
       )}
 
-      {/* --- MODAL: RECORD PAYMENT --- */}
+      {/* Payment Modal */}
       {showPayModal && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm animate-in zoom-in-95 duration-200 bg-white rounded-[2.5rem] p-8 shadow-2xl">
-            <div className="text-center mb-8">
-              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
-                <IndianRupee size={32} />
-              </div>
-              <h2 className="text-2xl font-black text-slate-800">
-                Settle Vendor
-              </h2>
-              <p className="text-sm font-bold text-slate-400 mt-1">
-                Paying{" "}
-                <span className="text-slate-700">{showPayModal.name}</span>
-              </p>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center">
+          <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md animate-slide-up">
+            <div className="p-4 border-b border-gray-100 text-center">
+              <h2 className="font-bold text-gray-900">Record Payment</h2>
+              <p className="text-sm text-gray-500 mt-1">{showPayModal.name}</p>
             </div>
 
-            <form onSubmit={handlePayment} className="space-y-6">
-              <div className="relative">
-                <span className="absolute left-5 top-1/2 -translate-y-1/2 text-3xl font-black text-slate-300">
-                  ₹
-                </span>
+            <form onSubmit={handlePayment} className="p-4 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-gray-700 mb-1 block">
+                  Amount (₹)
+                </label>
                 <input
                   type="number"
                   autoFocus
                   required
                   step="0.01"
                   placeholder="0.00"
-                  className="w-full border-b-4 border-slate-100 p-4 pl-12 text-center text-4xl font-black text-amber-600 outline-none focus:border-amber-500"
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:border-amber-500 focus:ring-2 focus:ring-amber-100 outline-none text-lg"
                   value={payAmount}
-                  onChange={(e) => setPayAmount(e.target.value)}
+                  onChange={(event) => setPayAmount(event.target.value)}
                 />
               </div>
 
-              <div className="flex flex-col gap-3">
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest shadow-xl hover:bg-black active:scale-95 disabled:opacity-50"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="animate-spin mx-auto" size={20} />
-                  ) : (
-                    "Confirm Payment"
-                  )}
-                </button>
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => setShowPayModal(null)}
-                  className="w-full py-3 text-sm font-black text-slate-400 uppercase tracking-widest hover:bg-slate-50 rounded-2xl"
+                  className="flex-1 py-3 rounded-xl border border-gray-200 font-medium text-gray-600 active:bg-gray-50"
                 >
                   Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="flex-1 bg-amber-600 text-white py-3 rounded-xl font-medium flex items-center justify-center active:scale-98 disabled:opacity-50"
+                >
+                  {isSubmitting ? (
+                    <Loader2 size={18} className="animate-spin" />
+                  ) : (
+                    "Confirm"
+                  )}
                 </button>
               </div>
             </form>

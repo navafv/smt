@@ -1,14 +1,13 @@
 import { Suspense, lazy, useEffect } from "react";
-import { Routes, Route, useLocation, Link } from "react-router-dom";
-import { Store, AlertOctagon, Home } from "lucide-react";
-import { useAuth } from "./context/AuthContext"; // Centralized auth state
+import { Routes, Route, useLocation, Navigate, Link } from "react-router-dom";
+import { useAuth } from "./context/AuthContext";
 
 // Components
 import ProtectedRoute from "./components/ProtectedRoute";
 import MainLayout from "./components/MainLayout";
 import LoadingScreen from "./components/LoadingScreen";
 
-// Lazy Load Pages for Performance
+// Lazy Load Pages
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Inventory = lazy(() => import("./pages/Inventory"));
 const QuickSale = lazy(() => import("./pages/QuickSale"));
@@ -26,25 +25,18 @@ const Reports = lazy(() => import("./pages/Reports"));
 const ExportCenter = lazy(() => import("./pages/ExportCenter"));
 const Login = lazy(() => import("./Login"));
 
-/**
- * Helper: Scroll To Top on Route Change
- * Ensures the user starts at the top of every new page.
- */
+// Scroll to top on route change
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
-    window.scrollTo(0, 0);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }, [pathname]);
   return null;
 }
 
 function App({ onMount }) {
-  const { user } = useAuth(); // Use context instead of raw localStorage
+  const { user } = useAuth();
 
-  /**
-   * Hook into the initial-loader removal logic from main.jsx.
-   * This clears the pre-loader spinner once React hydrates.
-   */
   useEffect(() => {
     if (onMount) {
       onMount();
@@ -54,66 +46,87 @@ function App({ onMount }) {
   return (
     <>
       <ScrollToTop />
-
-      {/* Suspense handles the loading state while lazy components fetch */}
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public Routes */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected Business Logic Routes */}
+          {/* Protected Routes */}
           <Route element={<ProtectedRoute />}>
             <Route element={<MainLayout />}>
-              <Route path="/" element={<Dashboard />} />
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route path="/dashboard" element={<Dashboard />} />
 
-              {/* Sales & Transactions */}
-              <Route path="/sale" element={<QuickSale />} />
-              <Route path="/history" element={<SalesHistory />} />
-
-              {/* Inventory & Supply */}
+              {/* Core Features - Main Navigation */}
+              <Route path="/pos" element={<QuickSale />} />
+              <Route path="/sales" element={<SalesHistory />} />
               <Route path="/inventory" element={<Inventory />} />
-              <Route path="/stock" element={<StockManagement />} />
-              <Route path="/add-purchase" element={<AddPurchase />} />
-              <Route path="/purchases" element={<PurchaseList />} />
+              <Route path="/customers" element={<Customers />} />
 
-              {/* Financials & Adjustments */}
+              {/* Secondary Features */}
+              <Route path="/inventory/stock" element={<StockManagement />} />
+              <Route path="/purchases" element={<PurchaseList />} />
+              <Route path="/purchases/new" element={<AddPurchase />} />
+              <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/payments" element={<PaymentHistory />} />
               <Route path="/expenses" element={<Expenses />} />
               <Route path="/returns" element={<Returns />} />
-              <Route path="/loss" element={<LossReport />} />
-
-              {/* Partners */}
-              <Route path="/customers" element={<Customers />} />
-              <Route path="/suppliers" element={<Suppliers />} />
-
-              {/* Business Intelligence */}
               <Route path="/reports" element={<Reports />} />
-              <Route path="/export" element={<ExportCenter />} />
+              <Route path="/reports/loss" element={<LossReport />} />
+              <Route path="/exports" element={<ExportCenter />} />
+
+              {/* Redirects for old URLs */}
+              <Route path="/sale" element={<Navigate to="/pos" replace />} />
+              <Route
+                path="/history"
+                element={<Navigate to="/sales" replace />}
+              />
+              <Route
+                path="/stock"
+                element={<Navigate to="/inventory/stock" replace />}
+              />
+              <Route
+                path="/add-purchase"
+                element={<Navigate to="/purchases/new" replace />}
+              />
+              <Route
+                path="/loss"
+                element={<Navigate to="/reports/loss" replace />}
+              />
+              <Route
+                path="/export"
+                element={<Navigate to="/exports" replace />}
+              />
             </Route>
           </Route>
 
-          {/* 404: Professional Catch-all */}
+          {/* 404 Page - Mobile Friendly */}
           <Route
             path="*"
             element={
-              <div className="flex flex-col items-center justify-center min-h-screen bg-slate-50 p-6 text-center">
-                <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2.5rem] bg-rose-50 text-rose-600">
-                  <AlertOctagon size={40} />
+              <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-5">
+                <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6">
+                  <svg
+                    className="w-12 h-12 text-red-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+                    />
+                  </svg>
                 </div>
-                <h1 className="text-6xl font-black text-slate-900 tracking-tighter">
-                  404
-                </h1>
-                <p className="mt-2 text-lg font-bold text-slate-500">
-                  The page you're looking for has moved or doesn't exist.
-                </p>
-
-                {/* Dynamic recovery based on session state */}
+                <h1 className="text-4xl font-bold text-gray-900 mb-2">404</h1>
+                <p className="text-gray-600 text-center mb-8">Page not found</p>
                 <Link
-                  to={user ? "/" : "/login"}
-                  className="mt-8 flex items-center gap-2 rounded-2xl bg-slate-900 px-8 py-4 font-black text-white shadow-xl transition-all hover:bg-black active:scale-95"
+                  to={user ? "/dashboard" : "/login"}
+                  className="bg-green-600 text-white px-8 py-3 rounded-xl font-semibold active:scale-95 transition-transform inline-block"
                 >
-                  {user ? <Home size={20} /> : <Store size={20} />}
-                  {user ? "RETURN TO DASHBOARD" : "RETURN TO LOGIN"}
+                  Go Home
                 </Link>
               </div>
             }

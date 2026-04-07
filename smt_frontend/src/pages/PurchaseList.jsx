@@ -1,20 +1,8 @@
-import React, { useEffect, useState, useMemo } from "react";
-import {
-  Truck,
-  Search,
-  Calendar,
-  ChevronRight,
-  Package,
-  ShoppingBag,
-  X,
-  Loader2,
-  ArrowLeft,
-  Hash,
-  Filter,
-} from "lucide-react";
+import React, { useEffect, useMemo, useState } from "react";
+import { Loader2, Search, Truck, X } from "lucide-react";
 import api from "../api";
 import toast from "react-hot-toast";
-import { formatDateIST } from "../utils/datetime";
+import { formatCurrencyINR } from "../utils/currency";
 
 export default function PurchaseList() {
   const [purchases, setPurchases] = useState([]);
@@ -28,7 +16,7 @@ export default function PurchaseList() {
       const res = await api.get("/purchases/");
       setPurchases(res.data);
     } catch {
-      toast.error("Failed to fetch supply records.");
+      toast.error("Failed to load purchases");
     } finally {
       setLoading(false);
     }
@@ -38,214 +26,159 @@ export default function PurchaseList() {
     fetchPurchases();
   }, []);
 
-  // Filter by Supplier Name or Purchase ID
-  const filteredPurchases = useMemo(() => {
-    return purchases.filter(
-      (p) =>
-        (p.supplier_name &&
-          p.supplier_name.toLowerCase().includes(searchTerm.toLowerCase())) ||
-        p.id.toString().includes(searchTerm),
-    );
-  }, [searchTerm, purchases]);
+  const filteredPurchases = useMemo(
+    () =>
+      purchases.filter(
+        (purchase) =>
+          (purchase.supplier_name &&
+            purchase.supplier_name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())) ||
+          purchase.id.toString().includes(searchTerm),
+      ),
+    [purchases, searchTerm],
+  );
 
-  const formatDate = (dateString) => {
-    return formatDateIST(dateString);
-  };
+  const formatDate = (dateString) => new Date(dateString).toLocaleDateString();
 
   return (
-    <div className="space-y-6 p-4 md:p-0 pb-24">
-      {/* --- HEADER --- */}
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-black tracking-tight text-slate-800">
-          Purchase Ledger
-        </h1>
-        <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-          {purchases.length} Inward Deliveries Recorded
-        </p>
+    <div className="space-y-4 pb-20">
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Purchases</h1>
+        <p className="text-sm text-gray-500">{purchases.length} orders</p>
       </div>
 
-      {/* --- SEARCHBAR --- */}
-      <div className="relative group">
+      <div className="relative">
         <Search
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-amber-500 transition-colors"
-          size={20}
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
         />
         <input
           type="text"
-          placeholder="Search by supplier or purchase ID..."
-          className="w-full rounded-2xl border-2 border-slate-100 bg-white py-4 pl-12 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-amber-500 focus:ring-4 focus:ring-amber-50"
+          placeholder="Search by supplier or ID..."
+          className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 outline-none focus:border-amber-500 focus:ring-2 focus:ring-amber-100"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(event) => setSearchTerm(event.target.value)}
         />
       </div>
 
-      {/* --- LIST --- */}
       {loading ? (
-        <div className="flex h-64 flex-col items-center justify-center gap-4 text-slate-400">
-          <Loader2 className="animate-spin" size={40} />
-          <p className="font-bold uppercase tracking-tighter text-xs">
-            Loading supply history...
-          </p>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-amber-600" />
+        </div>
+      ) : filteredPurchases.length === 0 ? (
+        <div className="rounded-xl bg-gray-50 py-12 text-center">
+          <Truck size={40} className="mx-auto text-gray-300" />
+          <p className="mt-2 text-gray-500">No purchases found</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4">
-          {filteredPurchases.map((p) => (
-            <div
-              key={p.id}
-              onClick={() => setSelectedPurchase(p)}
-              className="group flex cursor-pointer items-center justify-between rounded-3xl border border-slate-100 bg-white p-5 shadow-sm transition-all hover:border-amber-200 hover:shadow-md active:scale-[0.99]"
+        <div className="space-y-3">
+          {filteredPurchases.map((purchase) => (
+            <button
+              key={purchase.id}
+              onClick={() => setSelectedPurchase(purchase)}
+              className="w-full cursor-pointer rounded-xl border border-gray-100 bg-white p-4 text-left shadow-sm active:bg-gray-50"
             >
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-50 text-amber-600 transition-colors group-hover:bg-amber-100">
-                  <Truck size={24} />
-                </div>
-                <div>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-black text-slate-800">
-                      Batch #PUR-{p.id}
-                    </span>
-                    <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">
-                      {p.items?.length || 0} Items
+                    <h3 className="font-semibold text-gray-900">
+                      Purchase #{purchase.id}
+                    </h3>
+                    <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600">
+                      {purchase.items?.length || 0} items
                     </span>
                   </div>
-                  <p className="text-sm font-bold text-slate-500 flex items-center gap-1">
-                    <Package size={12} className="text-slate-300" />{" "}
-                    {p.supplier_name || "Direct Purchase"}
+                  <p className="mt-1 text-sm text-gray-600">
+                    {purchase.supplier_name || "Direct Purchase"}
                   </p>
-                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase tracking-tight flex items-center gap-1">
-                    <Calendar size={10} /> {formatDate(p.created_at)}
+                  <p className="mt-1 text-xs text-gray-400">
+                    {formatDate(purchase.created_at)}
                   </p>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-xl font-black text-slate-900">
-                    ₹{p.total_amount}
-                  </p>
-                  <p className="text-[10px] font-black text-amber-600 uppercase tracking-tighter">
-                    Stock Added
+                  <p className="text-lg font-bold text-gray-900">
+                    {formatCurrencyINR(purchase.total_amount)}
                   </p>
                 </div>
-                <ChevronRight
-                  className="text-slate-300 group-hover:text-amber-500 transition-colors"
-                  size={20}
-                />
               </div>
-            </div>
+            </button>
           ))}
-
-          {filteredPurchases.length === 0 && (
-            <div className="py-20 text-center">
-              <ShoppingBag className="mx-auto mb-4 text-slate-200" size={64} />
-              <p className="font-bold text-slate-400 italic">
-                No purchase records found.
-              </p>
-            </div>
-          )}
         </div>
       )}
 
-      {/* --- DETAIL MODAL --- */}
       {selectedPurchase && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="w-full max-w-lg overflow-hidden rounded-[2.5rem] bg-white shadow-2xl animate-in zoom-in-95 duration-200">
-            <div className="bg-slate-900 p-6 flex justify-between items-center text-white">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-amber-500/20 rounded-lg text-amber-400">
-                  <Truck size={20} />
-                </div>
-                <div>
-                  <h2 className="text-lg font-black uppercase tracking-tight leading-none">
-                    Supply Details
-                  </h2>
-                  <p className="text-[10px] font-bold text-slate-400 mt-1 uppercase">
-                    Order #PUR-{selectedPurchase.id}
-                  </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+          <div className="animate-slide-up flex max-h-[90vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 p-4">
+              <div>
+                <h2 className="font-bold text-gray-900">
+                  Purchase #{selectedPurchase.id}
+                </h2>
+                <p className="mt-0.5 text-xs text-gray-500">
+                  {formatDate(selectedPurchase.created_at)}
+                </p>
               </div>
               <button
                 onClick={() => setSelectedPurchase(null)}
-                className="text-slate-400 hover:text-white transition-colors"
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
               >
-                <X size={24} />
+                <X size={18} />
               </button>
             </div>
 
-            <div className="p-8">
-              <div className="mb-8 grid grid-cols-2 gap-4 rounded-3xl bg-slate-50 p-6">
-                <div>
-                  <p className="text-[10px] font-black uppercase text-slate-400">
-                    Supplier
-                  </p>
-                  <p className="font-bold text-slate-800">
-                    {selectedPurchase.supplier_name || "Direct Purchase"}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-black uppercase text-slate-400">
-                    Date Received
-                  </p>
-                  <p className="font-bold text-slate-800">
-                    {formatDate(selectedPurchase.created_at)}
-                  </p>
-                </div>
+            <div className="flex-1 space-y-4 overflow-y-auto p-4">
+              <div className="rounded-xl bg-gray-50 p-4">
+                <p className="text-xs text-gray-500">Supplier</p>
+                <p className="font-semibold text-gray-900">
+                  {selectedPurchase.supplier_name || "Direct Purchase"}
+                </p>
               </div>
 
-              <div className="space-y-4">
-                <h4 className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  Items in this Batch
-                </h4>
-                <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-2 custom-scrollbar">
-                  {selectedPurchase.items?.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-center justify-between rounded-2xl border border-slate-50 bg-white p-4"
-                    >
-                      <div className="flex-1">
-                        <p className="text-sm font-black text-slate-800">
-                          {item.product_name}
-                        </p>
-                        <p className="text-[10px] font-bold text-slate-400 uppercase">
-                          ₹{item.unit_price} / unit
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm font-black text-slate-800">
-                          {item.quantity} {item.unit}
-                        </p>
-                        <p className="text-[10px] font-bold text-emerald-600">
-                          ₹{item.subtotal}
-                        </p>
+              <div>
+                <h3 className="mb-3 font-semibold text-gray-900">Items</h3>
+                <div className="space-y-2">
+                  {selectedPurchase.items?.map((item, index) => (
+                    <div key={index} className="rounded-xl bg-gray-50 p-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">
+                            {item.product_name}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            {formatCurrencyINR(item.unit_price)} / {item.unit}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-sm font-medium text-gray-900">
+                            {item.quantity} {item.unit}
+                          </p>
+                          <p className="text-xs font-medium text-green-600">
+                            {formatCurrencyINR(item.subtotal)}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-8 border-t border-slate-100 pt-6">
-                <div className="flex items-end justify-between">
-                  <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-900 text-white shadow-xl shadow-slate-200">
-                    <ShoppingBag size={28} />
-                  </div>
-                  <div className="text-right">
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-                      Total Investment
-                    </p>
-                    <p className="text-4xl font-black text-slate-900 leading-none">
-                      ₹{selectedPurchase.total_amount}
-                    </p>
-                  </div>
+              <div className="rounded-xl bg-amber-50 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-gray-600">Total Amount</span>
+                  <span className="text-xl font-bold text-gray-900">
+                    {formatCurrencyINR(selectedPurchase.total_amount)}
+                  </span>
                 </div>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-50 flex gap-3">
+            <div className="border-t border-gray-100 p-4">
               <button
                 onClick={() => setSelectedPurchase(null)}
-                className="w-full py-4 rounded-2xl bg-slate-900 text-white font-black text-xs uppercase tracking-widest shadow-lg shadow-slate-200 hover:bg-black transition-all active:scale-95"
+                className="w-full rounded-xl bg-gray-900 py-3 font-medium text-white active:scale-98"
               >
-                CLOSE RECORDS
+                Close
               </button>
             </div>
           </div>

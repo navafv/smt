@@ -1,8 +1,7 @@
-import React, { useDeferredValue, useEffect, useMemo, useState } from "react";
+import { useDeferredValue, useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
-  CheckCircle,
-  ChevronLeft,
+  CheckCircle2,
   CreditCard,
   Loader2,
   Minus,
@@ -11,25 +10,31 @@ import {
   ShoppingBag,
   ShoppingCart,
   User,
+  Wallet,
+  X,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api";
+import LoadingSkeleton from "../components/ui/LoadingSkeleton";
+import { formatCurrencyINR } from "../utils/currency";
+
+const weightPresets = ["0.25", "0.50", "1.00", "2.00"];
+
+function cartLineTotal(item) {
+  return parseFloat(item.quantity) * parseFloat(item.unit_price);
+}
 
 export default function QuickSale() {
-  const roundMoney = (value) =>
-    Number.parseFloat((Number(value) || 0).toFixed(2));
-  const toNumber = (value) => Number.parseFloat(value || 0);
-
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [cart, setCart] = useState([]);
-  const [discount, setDiscount] = useState("0.00");
+  const [discount, setDiscount] = useState(0);
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentType, setPaymentType] = useState("cash");
   const [selectedCustomer, setSelectedCustomer] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isBootLoading, setIsBootLoading] = useState(true);
-  const [showCartMobile, setShowCartMobile] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showCart, setShowCart] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -41,12 +46,11 @@ export default function QuickSale() {
         setProducts(prodRes.data);
         setCustomers(custRes.data);
       } catch {
-        toast.error("Failed to sync store data.");
+        toast.error("Failed to load data");
       } finally {
-        setIsBootLoading(false);
+        setIsLoading(false);
       }
     };
-
     loadData();
   }, []);
 
@@ -59,550 +63,412 @@ export default function QuickSale() {
 
   const filteredProducts = useMemo(() => {
     const term = deferredSearchTerm.trim().toLowerCase();
-    if (!term) return products;
+    if (!term) {
+      return products;
+    }
+
     return products.filter((product) =>
       product.name.toLowerCase().includes(term),
     );
   }, [deferredSearchTerm, products]);
 
   const addToCart = (product) => {
-    if (Number(product.stock_quantity) <= 0) {
-      toast.error(`${product.name} is out of stock.`);
+    const stock = parseFloat(product.stock_quantity);
+    if (stock <= 0) {
+      toast.error(`${product.name} is out of stock`);
       return;
     }
 
-    setCart((prev) => {
-      const existing = prev.find((item) => item.product === product.id);
-      if (existing) {
-        if (existing.quantity >= Number(product.stock_quantity)) {
-          toast.error(`Only ${product.stock_quantity} ${product.unit} available.`);
-          return prev;
-        }
+    setCart((currentCart) => {
+      const existing = currentCart.find((item) => item.product === product.id);
 
-        return prev.map((item) =>
-          item.product === product.id
-            ? {
-                ...item,
-                quantity: item.quantity + 1,
-                subtotal: roundMoney((item.quantity + 1) * item.unit_price),
-              }
-            : item,
-        );
+      if (!existing) {
+        const quantity =
+          product.unit === "pcs" || product.unit === "box" ? 1 : 0.5;
+        return [
+          ...currentCart,
+          {
+            product: product.id,
+            product_name: product.name,
+            quantity,
+            unit_price: parseFloat(product.price_per_unit),
+            unit: product.unit,
+          },
+        ];
       }
 
-      return [
-        ...prev,
-        {
-          product: product.id,
-          product_name: product.name,
-          quantity: 1,
-          unit_price: toNumber(product.price_per_unit),
-          subtotal: roundMoney(product.price_per_unit),
-          unit: product.unit,
-        },
-      ];
+      const increment =
+        product.unit === "pcs" || product.unit === "box" ? 1 : 0.5;
+      const nextQuantity = existing.quantity + increment;
+
+      if (nextQuantity > stock) {
+        toast.error(`Only ${stock} ${product.unit} available`);
+        return currentCart;
+      }
+
+      return currentCart.map((item) =>
+        item.product === product.id
+          ? { ...item, quantity: nextQuantity }
+          : item,
+      );
     });
   };
 
-  const updateQuantity = (id, nextValue) => {
-    setCart((prev) =>
-      prev
-        .map((item) => {
-          if (item.product !== id) return item;
+  const updateQuantity = (id, newQuantity) => {
+    const product = productMap.get(id);
+    const quantity = parseFloat(newQuantity);
 
-          const product = productMap.get(id);
-          const nextQuantity = Math.max(0, toNumber(nextValue));
+    if (Number.isNaN(quantity) || quantity <= 0) {
+      setCart((currentCart) =>
+        currentCart.filter((item) => item.product !== id),
+      );
+      return;
+    }
 
-          if (product && nextQuantity > Number(product.stock_quantity)) {
-            toast.error(`Only ${product.stock_quantity} ${product.unit} available.`);
-            return item;
-          }
+    if (product && quantity > parseFloat(product.stock_quantity)) {
+      toast.error(`Only ${product.stock_quantity} ${product.unit} available`);
+      return;
+    }
 
-          return {
-            ...item,
-            quantity: nextQuantity,
-            subtotal: roundMoney(nextQuantity * item.unit_price),
-          };
-        })
-        .filter((item) => item.quantity > 0),
+    setCart((currentCart) =>
+      currentCart.map((item) =>
+        item.product === id ? { ...item, quantity } : item,
+      ),
     );
   };
 
+  const removeFromCart = (id) => {
+    setCart((currentCart) => currentCart.filter((item) => item.product !== id));
+  };
+
   const subtotal = useMemo(
-    () => roundMoney(cart.reduce((sum, item) => sum + Number(item.subtotal), 0)),
+    () => cart.reduce((sum, item) => sum + cartLineTotal(item), 0),
     [cart],
   );
 
-  const discountAmount = useMemo(() => {
-    const parsedDiscount = roundMoney(discount || 0);
-    return Math.min(parsedDiscount, subtotal);
-  }, [discount, subtotal]);
-
-  const total = useMemo(
-    () => roundMoney(subtotal - discountAmount),
-    [discountAmount, subtotal],
-  );
-
-  const itemCount = useMemo(
-    () => cart.reduce((sum, item) => sum + Number(item.quantity), 0),
-    [cart],
-  );
+  const discountAmount = Math.min(discount, subtotal);
+  const total = subtotal - discountAmount;
 
   const handleCheckout = async () => {
-    if (cart.length === 0) return;
+    if (cart.length === 0) {
+      toast.error("Cart is empty");
+      return;
+    }
+
     if (paymentType === "credit" && !selectedCustomer) {
-      toast.error("Select a customer for credit sales.");
+      toast.error("Select a customer for credit sale");
       return;
     }
 
     setIsSubmitting(true);
+
     try {
-      const saleRes = await api.post("/sales/", {
+      await api.post("/sales/", {
         total_amount: total.toFixed(2),
         discount_amount: discountAmount.toFixed(2),
         payment_type: paymentType,
-        customer:
-          paymentType === "credit" && selectedCustomer
-            ? Number(selectedCustomer)
-            : null,
+        customer: paymentType === "credit" ? parseInt(selectedCustomer, 10) : null,
         items: cart.map((item) => ({
           product: item.product,
           quantity: item.quantity.toFixed(2),
           unit_price: item.unit_price.toFixed(2),
-          subtotal: item.subtotal.toFixed(2),
+          subtotal: cartLineTotal(item).toFixed(2),
         })),
       });
 
-      toast.success(`Sale #SMT-${saleRes.data.id} completed.`);
+      toast.success("Sale completed!");
       setCart([]);
-      setDiscount("0.00");
+      setDiscount(0);
       setSelectedCustomer("");
       setPaymentType("cash");
-      setShowCartMobile(false);
+      setShowCart(false);
 
-      try {
-        const productRes = await api.get("/products/");
-        setProducts(productRes.data);
-      } catch {
-        toast.error("Sale saved, but inventory refresh failed. Reload the page.");
-      }
+      const productsResponse = await api.get("/products/");
+      setProducts(productsResponse.data);
     } catch (error) {
-      const message =
-        error.response?.data?.detail ||
-        error.response?.data?.customer?.[0] ||
-        error.response?.data?.discount_amount?.[0] ||
-        error.response?.data?.items?.[0] ||
-        error.response?.data?.quantity?.[0] ||
-        "Transaction failed.";
-      toast.error(message);
+      toast.error(error.response?.data?.detail || "Transaction failed");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="relative h-[calc(100vh-80px)] overflow-hidden">
-      <div
-        className={`flex h-full flex-col transition-all duration-300 ${showCartMobile ? "hidden lg:flex" : "flex"} lg:mr-100`}
-      >
-        <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 p-4 backdrop-blur-md md:p-6">
-          <div className="flex flex-col gap-4">
-            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-              <div>
-                <p className="text-sm font-bold tracking-wide text-emerald-600">
-                  Counter Mode
-                </p>
-                <h1 className="text-3xl font-black tracking-tight text-slate-900">
-                  Quick Sale
-                </h1>
-                <p className="mt-1 text-sm font-semibold text-slate-500">
-                  Tap products to build the order. Cash can be completed in two
-                  taps on desktop.
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 md:w-[340px]">
-                <div className="rounded-[1.75rem] bg-slate-900 p-4 text-white shadow-lg">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-400">
-                    Active Total
-                  </p>
-                  <p className="mt-2 text-3xl font-black tracking-tight">
-                    ₹ {total.toFixed(2)}
-                  </p>
-                </div>
-                <div className="rounded-[1.75rem] border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-700">
-                    Items In Cart
-                  </p>
-                  <p className="mt-2 text-3xl font-black tracking-tight">
-                    {itemCount}
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_280px]">
-              <div className="relative">
-                <label htmlFor="quick-sale-search" className="sr-only">
-                  Search products
-                </label>
-                <Search
-                  className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={20}
-                />
-                <input
-                  id="quick-sale-search"
-                  type="text"
-                  placeholder="Search fruits by name..."
-                  className="w-full rounded-2xl border-2 border-transparent bg-slate-50 py-3.5 pl-12 pr-4 font-bold text-slate-800 outline-none transition-all focus:border-emerald-500 focus:bg-white"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 p-2">
-                <button
-                  type="button"
-                  onClick={() => setPaymentType("cash")}
-                  aria-pressed={paymentType === "cash"}
-                  className={`smt-touch-target flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wide transition-all ${
-                    paymentType === "cash"
-                      ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100"
-                      : "bg-white text-slate-500"
-                  }`}
-                >
-                  <CheckCircle size={16} /> Cash
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setPaymentType("credit")}
-                  aria-pressed={paymentType === "credit"}
-                  className={`smt-touch-target flex flex-1 items-center justify-center gap-2 rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wide transition-all ${
-                    paymentType === "credit"
-                      ? "bg-orange-500 text-white shadow-lg shadow-orange-100"
-                      : "bg-white text-slate-500"
-                  }`}
-                >
-                  <CreditCard size={16} /> Credit
-                </button>
-              </div>
-            </div>
-          </div>
+    <div className="space-y-4 pb-20">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-xl font-bold text-gray-900">Quick Sale</h1>
+          <p className="text-sm text-gray-500">{cart.length} lines in cart</p>
         </div>
-
-        <div className="flex-1 overflow-y-auto p-4 pb-32 md:p-6 lg:pb-6">
-          {isBootLoading ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 xl:grid-cols-4">
-              {Array.from({ length: 8 }).map((_, index) => (
-                <div
-                  key={index}
-                  className="h-40 animate-pulse rounded-[1.75rem] bg-slate-200"
-                />
-              ))}
-            </div>
-          ) : filteredProducts.length > 0 ? (
-            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:gap-4 xl:grid-cols-4">
-              {filteredProducts.map((product) => (
-                <button
-                  key={product.id}
-                  disabled={Number(product.stock_quantity) <= 0}
-                  onClick={() => addToCart(product)}
-                  aria-label={`Add ${product.name} to cart`}
-                  className={`relative flex min-h-40 flex-col overflow-hidden rounded-[1.75rem] border-2 p-4 text-left transition-all active:scale-95 ${
-                    Number(product.stock_quantity) <= 0
-                      ? "border-slate-100 bg-slate-50 opacity-60"
-                      : "border-slate-100 bg-white hover:border-emerald-500 hover:shadow-lg"
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-3">
-                    <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-bold ${
-                        Number(product.stock_quantity) <= 5
-                          ? "bg-rose-50 text-rose-600"
-                          : "bg-slate-100 text-slate-600"
-                      }`}
-                    >
-                      Stock {product.stock_quantity}
-                    </span>
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-emerald-50 text-emerald-600">
-                      <Plus size={18} />
-                    </div>
-                  </div>
-                  <div className="mt-5 flex-1">
-                    <span className="line-clamp-2 text-base font-black leading-tight text-slate-900">
-                      {product.name}
-                    </span>
-                    <span className="mt-2 block text-2xl font-black tracking-tight text-emerald-600">
-                      ₹ {product.price_per_unit}
-                    </span>
-                  </div>
-                  <div className="mt-auto flex items-center justify-between pt-4 text-sm font-semibold text-slate-500">
-                    <span>{product.unit}</span>
-                    {Number(product.stock_quantity) <= 0 ? (
-                      <span className="rounded-full bg-slate-200 px-3 py-1 text-xs font-bold text-slate-500">
-                        Out of Stock
-                      </span>
-                    ) : (
-                      <span className="text-xs font-bold uppercase tracking-wide text-emerald-700">
-                        Tap to add
-                      </span>
-                    )}
-                  </div>
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="flex min-h-[320px] flex-col items-center justify-center rounded-[2rem] border border-dashed border-slate-200 bg-white p-8 text-center">
-              <AlertCircle size={40} className="text-slate-300" />
-              <p className="mt-4 text-lg font-black text-slate-800">
-                No products match this search
-              </p>
-              <p className="mt-2 max-w-sm text-sm font-semibold text-slate-500">
-                Try a shorter product name or clear the search to view the full
-                inventory.
-              </p>
-            </div>
-          )}
-        </div>
+        {cart.length > 0 && (
+          <button
+            onClick={() => setShowCart(true)}
+            className="relative flex h-12 w-12 items-center justify-center rounded-xl bg-green-600 active:scale-95"
+          >
+            <ShoppingBag size={20} className="text-white" />
+            <span className="absolute -right-1 -top-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-xs text-white">
+              {cart.length}
+            </span>
+          </button>
+        )}
       </div>
 
-      {!showCartMobile && cart.length > 0 && (
-        <div className="animate-in slide-in-from-bottom-10 fixed bottom-24 left-4 right-4 lg:hidden">
-          <button
-            type="button"
-            onClick={() => setShowCartMobile(true)}
-            className="flex w-full items-center justify-between rounded-3xl bg-slate-900 p-4 text-white shadow-2xl ring-4 ring-white"
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative">
-                <ShoppingBag size={24} className="text-emerald-400" />
-                <span className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-[10px] font-black">
-                  {cart.length}
-                </span>
-              </div>
-              <div className="text-left">
-                <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
-                  View Cart
+      <div className="relative">
+        <Search
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+        />
+        <input
+          type="text"
+          placeholder="Search fruits..."
+          className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+          value={searchTerm}
+          onChange={(event) => setSearchTerm(event.target.value)}
+        />
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        {[
+          { id: "cash", label: "Cash", icon: Wallet },
+          { id: "credit", label: "Credit", icon: CreditCard },
+        ].map((option) => {
+          const Icon = option.icon;
+          const isActive = paymentType === option.id;
+
+          return (
+            <button
+              key={option.id}
+              onClick={() => setPaymentType(option.id)}
+              className={`flex items-center justify-center gap-2 rounded-xl py-3 font-medium transition-all active:scale-98 ${
+                isActive
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-100 text-gray-600"
+              }`}
+            >
+              <Icon size={18} />
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {isLoading ? (
+        <div className="grid grid-cols-2 gap-3">
+          {Array.from({ length: 6 }).map((_, index) => (
+            <LoadingSkeleton key={index} className="h-40" />
+          ))}
+        </div>
+      ) : filteredProducts.length > 0 ? (
+        <div className="grid grid-cols-2 gap-3">
+          {filteredProducts.map((product) => {
+            const stock = parseFloat(product.stock_quantity);
+            const isLowStock = stock <= 5;
+            const isOutOfStock = stock <= 0;
+
+            return (
+              <button
+                key={product.id}
+                disabled={isOutOfStock}
+                onClick={() => addToCart(product)}
+                className={`rounded-xl border bg-white p-3 text-left transition-all active:scale-98 ${
+                  isOutOfStock
+                    ? "border-gray-100 opacity-50"
+                    : "border-gray-100 shadow-sm hover:border-green-200"
+                }`}
+              >
+                <div className="flex items-start justify-between">
+                  <span
+                    className={`rounded-full px-2 py-0.5 text-xs ${
+                      isLowStock
+                        ? "bg-red-100 text-red-600"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                  >
+                    {stock} {product.unit}
+                  </span>
+                  <Plus size={16} className="text-green-600" />
+                </div>
+                <h3 className="mt-2 font-semibold text-gray-900">{product.name}</h3>
+                <p className="mt-1 text-lg font-bold text-green-600">
+                  {formatCurrencyINR(product.price_per_unit)}
                 </p>
-                <p className="text-lg font-black">₹ {total.toFixed(2)}</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-1 text-sm font-black uppercase text-emerald-400">
-              Checkout <ChevronLeft className="rotate-180" size={18} />
-            </div>
-          </button>
+                <p className="mt-2 text-xs text-gray-400">per {product.unit}</p>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="rounded-xl bg-gray-50 py-12 text-center">
+          <AlertCircle size={40} className="mx-auto text-gray-300" />
+          <p className="mt-2 text-gray-500">No products found</p>
         </div>
       )}
 
-      <div
-        className={`fixed right-0 top-0 z-50 flex h-full w-full flex-col border-slate-100 bg-white shadow-2xl transition-transform duration-300 lg:absolute lg:w-100 lg:border-l ${
-          showCartMobile ? "translate-x-0" : "translate-x-full lg:translate-x-0"
-        }`}
-      >
-        <div className="flex items-center gap-4 bg-slate-900 p-4 text-white lg:hidden">
-          <button
-            type="button"
-            onClick={() => setShowCartMobile(false)}
-            aria-label="Close cart review"
-            className="p-2 -ml-2"
-          >
-            <ChevronLeft size={24} />
-          </button>
-          <h2 className="text-sm font-black uppercase tracking-widest">
-            Review Order
-          </h2>
-        </div>
-
-        <div className="hidden items-center gap-3 bg-slate-900 p-6 text-white lg:flex">
-          <ShoppingCart size={20} className="text-emerald-400" />
-          <h3 className="text-sm font-black uppercase tracking-widest">
-            Active Cart
-          </h3>
-        </div>
-
-        <div className="flex-1 space-y-4 overflow-y-auto p-4 md:p-6">
-          <div className="rounded-[1.75rem] bg-slate-50 p-4">
-            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
-              Order Snapshot
-            </p>
-            <div className="mt-3 flex items-end justify-between">
-              <div>
-                <p className="text-sm font-semibold text-slate-500">Items</p>
-                <p className="text-2xl font-black text-slate-900">{itemCount}</p>
-              </div>
-              <div className="text-right">
-                <p className="text-sm font-semibold text-slate-500">
-                  Grand Total
-                </p>
-                <p className="text-4xl font-black tracking-tight text-slate-900">
-                  ₹ {total.toFixed(2)}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 grid gap-3 rounded-[1.25rem] border border-slate-200 bg-white p-4">
-              <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
-                <span>Subtotal</span>
-                <span className="font-black text-slate-900">
-                  ₹ {subtotal.toFixed(2)}
-                </span>
-              </div>
-              <div>
-                <label
-                  htmlFor="quick-sale-discount"
-                  className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-slate-500"
+      {showCart && (
+        <div className="fixed inset-0 z-50 flex items-end bg-black/50">
+          <div className="animate-slide-up flex max-h-[85vh] w-full flex-col rounded-t-2xl bg-white">
+            <div className="border-b border-gray-100 p-4">
+              <div className="flex items-center justify-between">
+                <h2 className="font-bold text-gray-900">Cart ({cart.length} items)</h2>
+                <button
+                  onClick={() => setShowCart(false)}
+                  className="flex h-10 w-10 items-center justify-center"
                 >
-                  Total Discount
-                </label>
-                <input
-                  id="quick-sale-discount"
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  placeholder="0.00"
-                  className="w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 font-black text-slate-900 outline-none focus:border-emerald-500"
-                  value={discount}
-                  onChange={(e) => setDiscount(e.target.value)}
-                />
-                {discountAmount !== roundMoney(discount || 0) && (
-                  <p className="mt-2 text-xs font-semibold text-orange-600">
-                    Discount capped at the current subtotal.
-                  </p>
-                )}
-              </div>
-              <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
-                <span>Applied Discount</span>
-                <span className="font-black text-rose-600">
-                  -₹ {discountAmount.toFixed(2)}
-                </span>
+                  <X size={20} />
+                </button>
               </div>
             </div>
-          </div>
 
-          {cart.length === 0 ? (
-            <div className="flex min-h-[260px] flex-col items-center justify-center rounded-[2rem] border border-dashed border-slate-200 bg-slate-50 p-8 text-center">
-              <ShoppingBag size={40} className="text-slate-300" />
-              <p className="mt-4 text-lg font-black text-slate-800">
-                Cart is empty
-              </p>
-              <p className="mt-2 text-sm font-semibold text-slate-500">
-                Add products from the catalog to start building the bill.
-              </p>
-            </div>
-          ) : (
-            cart.map((item) => (
-              <div
-                key={item.product}
-                className="group rounded-[1.75rem] border border-slate-100 bg-white p-4 shadow-sm"
-              >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="mr-2 flex-1">
-                    <p className="text-base font-black leading-tight text-slate-900">
-                      {item.product_name}
-                    </p>
-                    <p className="mt-1 text-sm font-semibold text-slate-500">
-                      ₹ {item.unit_price} / {item.unit}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-semibold text-slate-500">
-                      Line Total
-                    </p>
-                    <p className="text-lg font-black text-slate-900">
-                      ₹ {item.subtotal}
-                    </p>
-                  </div>
+            <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              {cart.length === 0 ? (
+                <div className="py-8 text-center">
+                  <ShoppingCart size={40} className="mx-auto text-gray-300" />
+                  <p className="mt-2 text-gray-500">Cart is empty</p>
                 </div>
-                <div className="mt-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3 rounded-2xl bg-slate-100 p-1.5">
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item.product, item.quantity - 1)}
-                      aria-label={`Decrease quantity for ${item.product_name}`}
-                      className="smt-touch-target flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm active:bg-rose-50"
-                    >
-                      <Minus size={16} />
-                    </button>
+              ) : (
+                cart.map((item) => (
+                  <div key={item.product} className="rounded-xl bg-gray-50 p-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <h3 className="font-semibold text-gray-900">
+                          {item.product_name}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {formatCurrencyINR(item.unit_price)} / {item.unit}
+                        </p>
+                      </div>
+                      <button onClick={() => removeFromCart(item.product)}>
+                        <X size={16} className="text-gray-400" />
+                      </button>
+                    </div>
+
+                    <div className="mt-3 flex items-center justify-between">
+                      <div className="flex items-center gap-2 rounded-lg bg-white p-1">
+                        <button
+                          onClick={() =>
+                            updateQuantity(
+                              item.product,
+                              item.quantity - (item.unit === "pcs" ? 1 : 0.25),
+                            )
+                          }
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 active:bg-gray-200"
+                        >
+                          <Minus size={14} />
+                        </button>
+                        <input
+                          type="number"
+                          step={item.unit === "pcs" ? 1 : 0.25}
+                          value={item.quantity}
+                          onChange={(event) =>
+                            updateQuantity(item.product, parseFloat(event.target.value))
+                          }
+                          className="w-16 rounded-lg border border-gray-200 py-1 text-center"
+                        />
+                        <button
+                          onClick={() =>
+                            updateQuantity(
+                              item.product,
+                              item.quantity + (item.unit === "pcs" ? 1 : 0.25),
+                            )
+                          }
+                          className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 active:bg-gray-200"
+                        >
+                          <Plus size={14} />
+                        </button>
+                      </div>
+                      <p className="font-semibold text-gray-900">
+                        {formatCurrencyINR(cartLineTotal(item))}
+                      </p>
+                    </div>
+
+                    {item.unit !== "pcs" && item.unit !== "box" && (
+                      <div className="mt-3 flex gap-2">
+                        {weightPresets.map((preset) => (
+                          <button
+                            key={preset}
+                            onClick={() =>
+                              updateQuantity(item.product, parseFloat(preset))
+                            }
+                            className="rounded-lg bg-gray-200 px-2 py-1 text-xs active:bg-gray-300"
+                          >
+                            {preset} kg
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+
+            {cart.length > 0 && (
+              <div className="space-y-3 border-t border-gray-100 p-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-gray-600">Discount</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-gray-400">Rs</span>
                     <input
                       type="number"
+                      value={discount}
+                      onChange={(event) =>
+                        setDiscount(parseFloat(event.target.value) || 0)
+                      }
+                      className="w-24 rounded-lg border border-gray-200 py-1 px-2 text-right"
                       min="0"
-                      step={item.unit === "pcs" || item.unit === "box" ? "1" : "0.01"}
-                      className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-2 text-center text-base font-black text-slate-900 outline-none focus:border-emerald-500"
-                      value={item.quantity}
-                      onChange={(e) => updateQuantity(item.product, e.target.value)}
+                      max={subtotal}
                     />
-                    <button
-                      type="button"
-                      onClick={() => updateQuantity(item.product, item.quantity + 1)}
-                      aria-label={`Increase quantity for ${item.product_name}`}
-                      className="smt-touch-target flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm active:bg-emerald-50"
-                    >
-                      <Plus size={16} />
-                    </button>
                   </div>
-                  <button
-                    type="button"
-                    onClick={() => updateQuantity(item.product, 0)}
-                    className="rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wide text-rose-600 transition-colors hover:bg-rose-50"
-                  >
-                    Remove
-                  </button>
                 </div>
-              </div>
-            ))
-          )}
-        </div>
 
-        <div className="space-y-4 border-t border-slate-100 bg-slate-50 p-4 md:p-6">
-          {paymentType === "credit" ? (
-            <div>
-              <label htmlFor="quick-sale-customer" className="smt-field-label">
-                Credit Customer
-              </label>
-              <div className="relative">
-                <User
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
-                  size={16}
-                />
-                <select
-                  id="quick-sale-customer"
-                  className="w-full rounded-2xl border-2 border-slate-200 bg-white py-3.5 pl-10 pr-4 text-sm font-bold text-slate-800 outline-none focus:border-emerald-500"
-                  value={selectedCustomer}
-                  onChange={(e) => setSelectedCustomer(e.target.value)}
+                <div className="flex items-center justify-between border-t border-gray-100 pt-2">
+                  <span className="font-bold text-gray-900">Total</span>
+                  <span className="text-xl font-bold text-green-600">
+                    {formatCurrencyINR(total)}
+                  </span>
+                </div>
+
+                {paymentType === "credit" && (
+                  <div className="relative">
+                    <User
+                      size={16}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                    />
+                    <select
+                      value={selectedCustomer}
+                      onChange={(event) => setSelectedCustomer(event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4"
+                    >
+                      <option value="">Select customer</option>
+                      {customers.map((customer) => (
+                        <option key={customer.id} value={customer.id}>
+                          {customer.name} ({formatCurrencyINR(customer.balance)})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <button
+                  onClick={handleCheckout}
+                  disabled={isSubmitting || cart.length === 0}
+                  className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-4 font-semibold text-white active:scale-98 disabled:opacity-50"
                 >
-                  <option value="">Select customer for credit sale</option>
-                  {customers.map((customer) => (
-                    <option key={customer.id} value={customer.id}>
-                      {customer.name} (₹ {customer.balance})
-                    </option>
-                  ))}
-                </select>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 size={18} className="animate-spin" />
+                      Processing...
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 size={18} />
+                      Complete Sale
+                    </>
+                  )}
+                </button>
               </div>
-            </div>
-          ) : (
-            <div className="rounded-2xl border border-emerald-100 bg-emerald-50 px-4 py-3 text-sm font-semibold text-emerald-800">
-              Cash mode is ready. Add items and complete the sale when the
-              total looks right.
-            </div>
-          )}
-
-          <button
-            type="button"
-            disabled={cart.length === 0 || isSubmitting}
-            onClick={handleCheckout}
-            aria-busy={isSubmitting}
-            className="flex w-full items-center justify-center gap-3 rounded-4xl bg-emerald-600 py-5 text-lg font-black text-white shadow-xl shadow-emerald-200 transition-all hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 active:scale-95"
-          >
-            {isSubmitting ? (
-              <>
-                <Loader2 className="animate-spin" />
-                Processing Sale...
-              </>
-            ) : (
-              "COMPLETE SALE"
             )}
-          </button>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -1,10 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Banknote,
-  ChevronRight,
   CreditCard,
-  Hash,
-  History,
   Loader2,
   Printer,
   Search,
@@ -15,7 +12,7 @@ import {
 import toast from "react-hot-toast";
 import { toPng } from "html-to-image";
 import api from "../api";
-import { formatDateTimeIST } from "../utils/datetime";
+import { formatCurrencyINR } from "../utils/currency";
 
 export default function SalesHistory() {
   const [sales, setSales] = useState([]);
@@ -24,17 +21,7 @@ export default function SalesHistory() {
   const [selectedSale, setSelectedSale] = useState(null);
   const [isSharing, setIsSharing] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
-
   const receiptRef = useRef(null);
-
-  const getSubtotalAmount = (sale) => {
-    if (sale.subtotal_amount != null) {
-      return Number(sale.subtotal_amount).toFixed(2);
-    }
-    return sale.items
-      .reduce((sum, item) => sum + Number(item.subtotal || 0), 0)
-      .toFixed(2);
-  };
 
   const fetchSales = async () => {
     try {
@@ -42,7 +29,7 @@ export default function SalesHistory() {
       const res = await api.get("/sales/");
       setSales(res.data);
     } catch {
-      toast.error("Failed to fetch sales ledger.");
+      toast.error("Failed to load sales");
     } finally {
       setLoading(false);
     }
@@ -60,420 +47,271 @@ export default function SalesHistory() {
           (sale.customer_name &&
             sale.customer_name.toLowerCase().includes(searchTerm.toLowerCase())),
       ),
-    [searchTerm, sales],
+    [sales, searchTerm],
   );
 
-  const formatDate = (dateString) => formatDateTimeIST(dateString);
+  const formatDate = (dateString) => new Date(dateString).toLocaleString();
 
   const handlePrint = () => {
     setIsPrinting(true);
-    toast.loading("Opening print dialog...", { id: "print-sale" });
     window.print();
-    window.setTimeout(() => {
+    setTimeout(() => {
       setIsPrinting(false);
-      toast.success("Print dialog opened.", { id: "print-sale" });
+      toast.success("Print dialog opened");
     }, 600);
   };
 
   const handleShare = async () => {
-    if (!receiptRef.current || isSharing || !selectedSale) return;
+    if (!receiptRef.current || isSharing || !selectedSale) {
+      return;
+    }
 
     setIsSharing(true);
-    toast.loading("Generating receipt image...", { id: "share-sale" });
+    toast.loading("Generating receipt...", { id: "share-receipt" });
 
     try {
       const dataUrl = await toPng(receiptRef.current, {
         cacheBust: true,
         backgroundColor: "#ffffff",
-        fontEmbedCSS: "",
-        pixelRatio: 3,
+        pixelRatio: 2,
         width: 380,
-        style: {
-          margin: "0",
-          padding: "20px",
-        },
       });
 
-      const res = await fetch(dataUrl);
-      const blob = await res.blob();
-      const file = new File([blob], `SMT-Receipt-${selectedSale.id}.png`, {
+      const response = await fetch(dataUrl);
+      const blob = await response.blob();
+      const file = new File([blob], `Receipt-${selectedSale.id}.png`, {
         type: "image/png",
       });
 
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Receipt #SMT-${selectedSale.id}`,
+          title: `Receipt #${selectedSale.id}`,
         });
-        toast.success("Receipt shared successfully.", { id: "share-sale" });
+        toast.success("Receipt shared", { id: "share-receipt" });
       } else {
         const link = document.createElement("a");
-        link.download = `SMT-Receipt-${selectedSale.id}.png`;
+        link.download = `Receipt-${selectedSale.id}.png`;
         link.href = dataUrl;
         link.click();
-        toast.success("Receipt image downloaded.", { id: "share-sale" });
+        toast.success("Receipt downloaded", { id: "share-receipt" });
       }
-    } catch (error) {
-      console.error("Share Error:", error);
-      toast.error("Could not generate receipt image.", { id: "share-sale" });
+    } catch {
+      toast.error("Failed to generate receipt", { id: "share-receipt" });
     } finally {
       setIsSharing(false);
     }
   };
 
   return (
-    <div className="space-y-6 p-4 pb-24 md:p-0">
-      <div className="flex flex-col gap-2">
-        <p className="text-sm font-bold tracking-wide text-emerald-600">
-          Transaction Records
-        </p>
-        <h1 className="text-3xl font-black tracking-tight text-slate-900">
-          Sales Ledger
-        </h1>
-        <p className="text-sm font-semibold text-slate-500">
-          Tracking {sales.length} transactions with fast access to reprint and
-          share receipts.
-        </p>
+    <div className="space-y-4 pb-20">
+      <div>
+        <h1 className="text-xl font-bold text-gray-900">Sales History</h1>
+        <p className="text-sm text-gray-500">{sales.length} transactions</p>
       </div>
 
-      <div className="relative group">
-        <label htmlFor="sales-history-search" className="sr-only">
-          Search sales by order ID or customer name
-        </label>
+      <div className="relative">
         <Search
-          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 transition-colors group-focus-within:text-emerald-500"
-          size={20}
+          size={18}
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
         />
         <input
-          id="sales-history-search"
           type="text"
-          placeholder="Search order ID or customer name..."
-          className="w-full rounded-2xl border-2 border-slate-100 bg-white py-4 pl-12 pr-4 font-bold text-slate-800 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-50"
+          placeholder="Search by ID or customer..."
+          className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(event) => setSearchTerm(event.target.value)}
         />
       </div>
 
       {loading ? (
-        <div
-          className="flex h-64 flex-col items-center justify-center gap-4 text-slate-500"
-          aria-busy="true"
-        >
-          <Loader2 className="animate-spin" size={40} />
-          <p className="font-bold">Retrieving transactions...</p>
+        <div className="flex h-64 items-center justify-center">
+          <Loader2 size={32} className="animate-spin text-green-600" />
+        </div>
+      ) : filteredSales.length === 0 ? (
+        <div className="rounded-xl bg-gray-50 py-12 text-center">
+          <p className="text-gray-500">No sales found</p>
         </div>
       ) : (
         <div className="space-y-3">
           {filteredSales.map((sale) => (
             <button
               key={sale.id}
-              type="button"
               onClick={() => setSelectedSale(sale)}
-              className="group flex w-full items-center justify-between rounded-[1.75rem] border border-slate-100 bg-white p-5 text-left shadow-sm transition-all hover:border-emerald-200 hover:shadow-md active:scale-[0.98]"
+              className="w-full rounded-xl border border-gray-100 bg-white p-4 text-left shadow-sm active:bg-gray-50"
             >
-              <div className="flex items-center gap-4">
-                <div
-                  className={`flex h-12 w-12 items-center justify-center rounded-2xl ${
-                    sale.payment_type === "cash"
-                      ? "bg-emerald-50 text-emerald-600"
-                      : "bg-orange-50 text-orange-600"
-                  }`}
-                >
-                  {sale.payment_type === "cash" ? (
-                    <Banknote size={24} />
-                  ) : (
-                    <CreditCard size={24} />
-                  )}
-                </div>
-                <div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="text-sm font-black text-slate-900">
-                      #SMT-{sale.id}
-                    </span>
+              <div className="flex items-start justify-between">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-semibold text-gray-900">#SMT-{sale.id}</span>
                     <span
-                      className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wide ${
+                      className={`rounded-full px-2 py-0.5 text-xs ${
                         sale.payment_type === "cash"
-                          ? "bg-emerald-100 text-emerald-700"
+                          ? "bg-green-100 text-green-700"
                           : "bg-orange-100 text-orange-700"
                       }`}
                     >
                       {sale.payment_type}
                     </span>
                   </div>
-                  <p className="mt-1 flex items-center gap-1 text-sm font-semibold text-slate-600">
+                  <p className="mt-1 flex items-center gap-1 text-sm text-gray-600">
                     <User size={12} />
-                    {sale.customer_name || "Walk-in Customer"}
+                    {sale.customer_name || "Walk-in"}
                   </p>
-                  <p className="mt-1 text-xs font-semibold text-slate-500">
+                  <p className="mt-1 text-xs text-gray-400">
                     {formatDate(sale.created_at)}
                   </p>
                 </div>
-              </div>
-
-              <div className="flex items-center gap-4">
                 <div className="text-right">
-                  <p className="text-2xl font-black tracking-tight text-slate-900">
-                    ₹ {sale.total_amount}
+                  <p className="text-lg font-bold text-gray-900">
+                    {formatCurrencyINR(sale.total_amount)}
                   </p>
-                  {Number(sale.discount_amount || 0) > 0 && (
-                    <p className="text-xs font-bold uppercase tracking-wide text-rose-500">
-                      Discount ₹ {Number(sale.discount_amount).toFixed(2)}
+                  {Number(sale.discount_amount) > 0 && (
+                    <p className="text-xs text-red-500">
+                      -{formatCurrencyINR(sale.discount_amount)}
                     </p>
                   )}
-                  <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">
-                    Paid
-                  </p>
                 </div>
-                <ChevronRight
-                  className="text-slate-300 transition-colors group-hover:text-emerald-500"
-                  size={20}
-                />
               </div>
             </button>
           ))}
-
-          {filteredSales.length === 0 && (
-            <div className="py-20 text-center">
-              <History className="mx-auto mb-4 text-slate-200" size={64} />
-              <p className="font-bold text-slate-500">
-                No transactions found for this search.
-              </p>
-            </div>
-          )}
         </div>
       )}
 
       {selectedSale && (
-        <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
-          <style
-            dangerouslySetInnerHTML={{
-              __html: `
-                @media print {
-                  body { visibility: hidden; }
-                  .print-area {
-                    visibility: visible !important;
-                    position: absolute;
-                    left: 0;
-                    top: 0;
-                    width: 100%;
-                  }
-                  .print-area * { visibility: visible !important; }
-                  .no-print { display: none !important; }
-                  @page { margin: 0; }
-                  body { margin: 1cm; }
-                }
-              `,
-            }}
-          />
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
+          <style>
+            {`
+              @media print {
+                body * { visibility: hidden; }
+                .print-area { visibility: visible !important; position: absolute; left: 0; top: 0; width: 100%; }
+                .print-area * { visibility: visible !important; }
+                .no-print { display: none !important; }
+                @page { margin: 0; }
+              }
+            `}
+          </style>
 
-          <div className="relative flex w-full max-w-4xl flex-col gap-4 lg:flex-row">
-            <button
-              type="button"
-              onClick={() => setSelectedSale(null)}
-              aria-label="Close receipt preview"
-              className="absolute right-0 top-[-3.25rem] rounded-full bg-white/20 p-2 text-white hover:bg-white/40"
-            >
-              <X size={24} />
-            </button>
+          <div className="animate-slide-up flex max-h-[90vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
+            <div className="flex items-center justify-between border-b border-gray-100 p-4">
+              <h2 className="font-bold text-gray-900">Receipt #{selectedSale.id}</h2>
+              <button
+                onClick={() => setSelectedSale(null)}
+                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
+              >
+                <X size={18} />
+              </button>
+            </div>
 
-            <div
-              ref={receiptRef}
-              className="print-area w-full max-w-sm rounded-[2rem] bg-white p-8 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 print:mx-auto print:w-[80mm]"
-              style={{ width: "100%", maxWidth: "380px" }}
-            >
-              <div className="text-center">
-                <h2 className="text-2xl font-black text-slate-900">
-                  SMT FRUITS
-                </h2>
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
-                  Kannur, Kerala
-                </p>
-                <div className="my-4 border-b border-dashed border-slate-200" />
-              </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <div ref={receiptRef} className="print-area bg-white">
+                <div className="border-b border-gray-200 pb-4 text-center">
+                  <h2 className="text-xl font-bold text-gray-900">SMT FRUITS</h2>
+                  <p className="text-xs text-gray-500">Kannur, Kerala</p>
+                </div>
 
-              <div className="mb-6 space-y-2 text-sm font-semibold text-slate-600">
-                <div className="flex items-center justify-between gap-4">
-                  <span>Order ID</span>
-                  <span className="font-black text-slate-900">
-                    #SMT-{selectedSale.id}
-                  </span>
+                <div className="space-y-2 border-b border-gray-200 py-4">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Order ID</span>
+                    <span className="text-sm font-semibold">#{selectedSale.id}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Date</span>
+                    <span className="text-sm">{formatDate(selectedSale.created_at)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600">Customer</span>
+                    <span className="text-sm">
+                      {selectedSale.customer_name || "Walk-in"}
+                    </span>
+                  </div>
                 </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span>Date</span>
-                  <span className="text-right text-slate-900">
-                    {formatDate(selectedSale.created_at)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-4">
-                  <span>Customer</span>
-                  <span className="text-right text-slate-900">
-                    {selectedSale.customer_name || "Walk-in"}
-                  </span>
-                </div>
-              </div>
 
-              <div className="mb-6 space-y-3">
-                <div className="flex justify-between border-b border-slate-100 pb-2 text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
-                  <span>Item</span>
-                  <span>Total</span>
-                </div>
-                {selectedSale.items.map((item) => (
-                  <div key={item.product} className="flex justify-between gap-4 text-sm">
-                    <div className="flex-1">
-                      <p className="font-bold text-slate-900">{item.product_name}</p>
-                      <p className="text-xs font-semibold text-slate-500">
-                        {item.quantity} x ₹ {item.unit_price}
-                      </p>
+                <div className="border-b border-gray-200 py-4">
+                  <div className="mb-2 flex justify-between text-xs font-semibold text-gray-500">
+                    <span>Item</span>
+                    <span>Total</span>
+                  </div>
+                  {selectedSale.items?.map((item) => (
+                    <div
+                      key={item.product}
+                      className="mb-2 flex justify-between text-sm"
+                    >
+                      <div>
+                        <p className="font-medium">{item.product_name}</p>
+                        <p className="text-xs text-gray-500">
+                          {item.quantity} x {formatCurrencyINR(item.unit_price)}
+                        </p>
+                      </div>
+                      <span className="font-medium">
+                        {formatCurrencyINR(item.subtotal)}
+                      </span>
                     </div>
-                    <span className="font-black text-slate-800">
-                      ₹ {item.subtotal}
-                    </span>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
 
-              <div className="mt-4 border-t-2 border-slate-900 pt-4">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
-                    <span>Subtotal</span>
-                    <span className="font-black text-slate-900">
-                      ₹ {getSubtotalAmount(selectedSale)}
+                <div className="space-y-2 py-4">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Subtotal</span>
+                    <span className="font-medium">
+                      {formatCurrencyINR(
+                        selectedSale.items?.reduce(
+                          (sum, item) => sum + Number(item.subtotal),
+                          0,
+                        ),
+                      )}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
-                    <span>Discount</span>
-                    <span className="font-black text-rose-600">
-                      -₹ {Number(selectedSale.discount_amount || 0).toFixed(2)}
-                    </span>
+                  {Number(selectedSale.discount_amount) > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-gray-600">Discount</span>
+                      <span className="text-red-600">
+                        -{formatCurrencyINR(selectedSale.discount_amount)}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex justify-between border-t border-gray-200 pt-2 text-lg font-bold">
+                    <span>Total</span>
+                    <span>{formatCurrencyINR(selectedSale.total_amount)}</span>
                   </div>
                 </div>
-                <div className="mt-4 flex items-end justify-between">
-                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
-                    Grand Total
-                  </span>
-                  <span className="text-3xl font-black tracking-tight text-slate-900">
-                    ₹ {selectedSale.total_amount}
-                  </span>
-                </div>
-                <p className="mt-4 rounded-xl bg-emerald-50 py-2 text-center text-xs font-bold uppercase tracking-wide text-emerald-700">
-                  Payment Method: {selectedSale.payment_type}
-                </p>
-              </div>
 
-              <div className="mt-8 text-center">
-                <p className="text-xs font-semibold italic text-slate-400">
-                  Thank you for your purchase!
-                </p>
-                <div className="mt-4 flex h-9 w-full items-center justify-center bg-slate-50 text-[11px] font-bold text-slate-500">
-                  <Hash size={10} className="mr-1" /> SMT-INFOSYS-POS-V1.0
+                <div className="border-t border-gray-200 pt-4 text-center">
+                  <p className="text-xs text-gray-500">
+                    Payment: {selectedSale.payment_type}
+                  </p>
+                  <p className="mt-2 text-xs text-gray-400">
+                    Thank you for your purchase!
+                  </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex min-w-0 flex-1 flex-col gap-4">
-              <div className="rounded-[2rem] bg-white p-6 shadow-2xl">
-                <p className="text-sm font-bold tracking-wide text-emerald-600">
-                  Receipt Actions
-                </p>
-                <h3 className="mt-1 text-2xl font-black tracking-tight text-slate-900">
-                  Order #{selectedSale.id}
-                </h3>
-                <p className="mt-2 text-sm font-semibold text-slate-500">
-                  Reprint, share, or review the bill details before closing.
-                </p>
-
-                <div className="mt-6 grid gap-3 sm:grid-cols-3">
-                  <button
-                    type="button"
-                    onClick={handlePrint}
-                    disabled={isPrinting}
-                    className="no-print flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 font-black text-white"
-                  >
-                    {isPrinting ? (
-                      <Loader2 className="animate-spin" size={18} />
-                    ) : (
-                      <Printer size={18} />
-                    )}
-                    Print Bill
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleShare}
-                    disabled={isSharing}
-                    className="no-print flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-4 font-black text-white"
-                  >
-                    {isSharing ? (
-                      <Loader2 className="animate-spin" size={18} />
-                    ) : (
-                      <Share2 size={18} />
-                    )}
-                    Share
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedSale(null)}
-                    className="no-print rounded-2xl bg-slate-100 px-4 py-4 font-black text-slate-600 transition-all hover:bg-slate-200"
-                  >
-                    Close
-                  </button>
-                </div>
-              </div>
-
-              <div className="rounded-[2rem] bg-white p-6 shadow-2xl">
-                <h4 className="text-lg font-black text-slate-900">
-                  Order Summary
-                </h4>
-                <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Customer
-                    </p>
-                    <p className="mt-2 text-lg font-black text-slate-900">
-                      {selectedSale.customer_name || "Walk-in Customer"}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Payment
-                    </p>
-                    <p className="mt-2 text-lg font-black text-slate-900">
-                      {selectedSale.payment_type}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Items
-                    </p>
-                    <p className="mt-2 text-lg font-black text-slate-900">
-                      {selectedSale.items.length}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Subtotal
-                    </p>
-                    <p className="mt-2 text-lg font-black text-slate-900">
-                      ₹ {getSubtotalAmount(selectedSale)}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Discount
-                    </p>
-                    <p className="mt-2 text-lg font-black text-rose-600">
-                      -₹ {Number(selectedSale.discount_amount || 0).toFixed(2)}
-                    </p>
-                  </div>
-                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
-                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                      Total
-                    </p>
-                    <p className="mt-2 text-lg font-black text-slate-900">
-                      ₹ {selectedSale.total_amount}
-                    </p>
-                  </div>
-                </div>
-              </div>
+            <div className="flex gap-3 border-t border-gray-100 p-4">
+              <button
+                onClick={handlePrint}
+                disabled={isPrinting}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-medium text-white active:scale-98"
+              >
+                {isPrinting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Printer size={16} />
+                )}
+                Print
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={isSharing}
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-medium text-white active:scale-98"
+              >
+                {isSharing ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Share2 size={16} />
+                )}
+                Share
+              </button>
             </div>
           </div>
         </div>

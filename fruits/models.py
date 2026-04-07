@@ -165,10 +165,21 @@ class StockReturn(models.Model):
     loss_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True, db_index=True)
 
+    def _estimate_unit_cost(self):
+        latest_purchase_item = (
+            PurchaseItem.objects.filter(product=self.product)
+            .select_related('purchase')
+            .order_by('-purchase__created_at', '-id')
+            .first()
+        )
+        if latest_purchase_item:
+            return latest_purchase_item.unit_price
+        return self.product.price_per_unit
+
     def save(self, *args, **kwargs):
-        # Calculate financial loss automatically for wastage
+        # Wastage should reflect inventory cost, not selling price.
         if self.return_type == 'wastage':
-            self.loss_amount = self.product.price_per_unit * self.quantity
+            self.loss_amount = self._estimate_unit_cost() * self.quantity
         else:
             self.loss_amount = 0
         super().save(*args, **kwargs)

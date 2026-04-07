@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -7,13 +7,12 @@ import {
   User,
   Truck,
   Loader2,
-  IndianRupee,
-  Filter,
   FileText,
   ArrowRightLeft,
 } from "lucide-react";
 import api from "../api";
 import toast from "react-hot-toast";
+import { formatDateIST } from "../utils/datetime";
 
 export default function PaymentHistory() {
   const [activeTab, setActiveTab] = useState("customers"); // 'customers' or 'suppliers'
@@ -21,7 +20,7 @@ export default function PaymentHistory() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const fetchPayments = async () => {
+  const fetchPayments = useCallback(async () => {
     setLoading(true);
     try {
       const endpoint =
@@ -35,11 +34,11 @@ export default function PaymentHistory() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [activeTab]);
 
   useEffect(() => {
     fetchPayments();
-  }, [activeTab]);
+  }, [fetchPayments]);
 
   // Optimized Search Filter
   const filteredPayments = useMemo(() => {
@@ -56,11 +55,7 @@ export default function PaymentHistory() {
   }, [filteredPayments]);
 
   const formatDate = (dateString) => {
-    return new Intl.DateTimeFormat("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(dateString));
+    return formatDateIST(dateString);
   };
 
   return (

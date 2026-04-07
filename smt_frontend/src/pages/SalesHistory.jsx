@@ -1,26 +1,30 @@
-import React, { useEffect, useState, useMemo } from "react";
+import React, { useEffect, useState, useMemo, useRef } from "react";
 import {
   History,
   Search,
   Printer,
   X,
   User,
-  Calendar,
+  Share2,
   CreditCard,
   Banknote,
   ChevronRight,
   Hash,
-  ArrowLeft,
   Loader2,
 } from "lucide-react";
 import api from "../api";
 import toast from "react-hot-toast";
+import { formatDateTimeIST } from "../utils/datetime";
+import { toPng } from "html-to-image";
 
 export default function SalesHistory() {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedSale, setSelectedSale] = useState(null);
+  const [isSharing, setIsSharing] = useState(false);
+
+  const receiptRef = useRef(null);
 
   const fetchSales = async () => {
     try {
@@ -49,18 +53,56 @@ export default function SalesHistory() {
   }, [searchTerm, sales]);
 
   const formatDate = (dateString) => {
-    return new Intl.DateTimeFormat("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-      hour: "2-digit",
-      minute: "2-digit",
-    }).format(new Date(dateString));
+    return formatDateTimeIST(dateString);
   };
 
   const handlePrint = () => {
     window.print(); // Basic print trigger
     toast.success("Sending to printer...");
+  };
+
+  const handleShare = async () => {
+    if (!receiptRef.current || isSharing) return;
+
+    setIsSharing(true);
+    try {
+      const dataUrl = await toPng(receiptRef.current, {
+        cacheBust: true,
+        backgroundColor: "#ffffff",
+        fontEmbedCSS: "",
+        pixelRatio: 3, // Higher quality
+        // FIX: Force a specific width during capture to prevent text overlap
+        width: 380,
+        style: {
+          margin: "0",
+          padding: "20px",
+        },
+      });
+
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], `SMT-Receipt-${selectedSale.id}.png`, {
+        type: "image/png",
+      });
+
+      if (navigator.canShare && navigator.canShare({ files: [file] })) {
+        await navigator.share({
+          files: [file],
+          title: `Receipt #SMT-${selectedSale.id}`,
+        });
+      } else {
+        const link = document.createElement("a");
+        link.download = `SMT-Receipt-${selectedSale.id}.png`;
+        link.href = dataUrl;
+        link.click();
+        toast.success("Receipt image downloaded.");
+      }
+    } catch (err) {
+      console.error("Share Error:", err);
+      toast.error("Could not generate image.");
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   return (
@@ -174,6 +216,37 @@ export default function SalesHistory() {
       {/* --- BILL PREVIEW MODAL (THERMAL STYLE) --- */}
       {selectedSale && (
         <div className="fixed inset-0 z-100 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm animate-in fade-in duration-200">
+          {/* Print instructions: Hide everything else during window.print() */}
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+                @media print {
+                  /* Hide everything by using visibility */
+                  body { visibility: hidden; }
+                  
+                  /* Show only the receipt area */
+                  .print-area { 
+                    visibility: visible !important; 
+                    position: absolute;
+                    left: 0;
+                    top: 0;
+                    width: 100%;
+                  }
+                  
+                  /* Ensure all children of print-area are visible */
+                  .print-area * { visibility: visible !important; }
+
+                  /* Hide specific buttons even in print-area */
+                  .no-print { display: none !important; }
+                  
+                  /* Thermal printer optimizations */
+                  @page { margin: 0; }
+                  body { margin: 1cm; }
+                }
+              `,
+            }}
+          />
+
           <div className="relative w-full max-w-sm flex flex-col items-center">
             {/* Top Close Button (for mobile usability) */}
             <button
@@ -184,7 +257,11 @@ export default function SalesHistory() {
             </button>
 
             {/* The Receipt "Paper" */}
-            <div className="w-full bg-white p-8 shadow-2xl animate-in slide-in-from-bottom-8 duration-300 print:shadow-none">
+            <div
+              ref={receiptRef}
+              className="print-area w-full bg-white p-8 shadow-2xl animate-in slide-in-from-bottom-4 duration-300 print:w-[80mm] print:mx-auto"
+              style={{ width: "100%", maxWidth: "380px" }}
+            >
               {/* Receipt Header */}
               <div className="text-center">
                 <h2 className="text-2xl font-black text-slate-800">
@@ -198,16 +275,19 @@ export default function SalesHistory() {
 
               {/* Order Info */}
               <div className="space-y-1 text-xs font-bold text-slate-500 mb-6">
-                <div className="flex justify-between">
-                  <span>ORDER ID:</span> <span>#SMT-{selectedSale.id}</span>
+                <div className="flex justify-between items-center">
+                  <span className="whitespace-nowrap">ORDER ID:</span>
+                  <span className="text-slate-800">#SMT-{selectedSale.id}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span>DATE:</span>{" "}
-                  <span>{formatDate(selectedSale.created_at)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>CUSTOMER:</span>{" "}
+                <div className="flex justify-between items-center">
+                  <span className="whitespace-nowrap">DATE:</span>
                   <span className="text-slate-800">
+                    {formatDate(selectedSale.created_at)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="whitespace-nowrap">CUSTOMER:</span>
+                  <span className="text-slate-800 truncate ml-4">
                     {selectedSale.customer_name || "Walk-in"}
                   </span>
                 </div>
@@ -266,12 +346,24 @@ export default function SalesHistory() {
             </div>
 
             {/* Modal Actions */}
-            <div className="mt-6 flex w-full gap-3">
+            <div className="mt-6 flex w-full gap-2 no-prnt">
               <button
                 onClick={handlePrint}
-                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 font-black text-white shadow-lg shadow-emerald-200 transition-all hover:bg-emerald-700"
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 py-4 font-black text-white"
               >
                 <Printer size={18} /> PRINT BILL
+              </button>
+              <button
+                onClick={handleShare}
+                disabled={isSharing}
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl bg-blue-600 py-4 font-black text-white"
+              >
+                {isSharing ? (
+                  <Loader2 className="animate-spin" size={18} />
+                ) : (
+                  <Share2 size={18} />
+                )}
+                SHARE
               </button>
               <button
                 onClick={() => setSelectedSale(null)}

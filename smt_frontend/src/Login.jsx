@@ -52,11 +52,9 @@ export default function Login() {
 
     setIsSubmitting(true);
     try {
-      await login(creds.username, creds.password);
-      // AuthContext handles the success toast; we just handle the navigation
-      navigate(from, { replace: true });
+      await login(creds.username, creds.password, from);
     } catch {
-      // Backend errors are typically caught in the AuthContext/API interceptor
+      // Backend errors are surfaced by AuthContext.
       setIsSubmitting(false);
     }
   };

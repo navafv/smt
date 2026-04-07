@@ -16,7 +16,7 @@ class DashboardSummaryView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        today = timezone.localtime().date()
+        today = timezone.localdate()
         thirty_days_ago = today - timedelta(days=30)
         
         # 1. Financials (Today)

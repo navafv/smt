@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import api from "../api";
 import toast from "react-hot-toast";
+import { formatDateIST } from "../utils/datetime";
 
 export default function PurchaseList() {
   const [purchases, setPurchases] = useState([]);
@@ -48,11 +49,7 @@ export default function PurchaseList() {
   }, [searchTerm, purchases]);
 
   const formatDate = (dateString) => {
-    return new Intl.DateTimeFormat("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(dateString));
+    return formatDateIST(dateString);
   };
 
   return (

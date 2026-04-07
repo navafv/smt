@@ -3,10 +3,8 @@ import api from "../api";
 import {
   FileSpreadsheet,
   Database,
-  Download,
   ShieldCheck,
   Loader2,
-  FileText,
   ShoppingCart,
   TrendingDown,
   AlertCircle,
@@ -14,6 +12,7 @@ import {
   Info,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { formatDateIST, todayIST, timestampIST } from "../utils/datetime";
 
 export default function ExportCenter() {
   const [loadingType, setLoadingType] = useState(null);
@@ -38,7 +37,7 @@ export default function ExportCenter() {
       link.href = url;
       link.setAttribute(
         "download",
-        `smt_${type}_log_${new Date().toISOString().split("T")[0]}.csv`,
+        `smt_${type}_log_${todayIST()}.csv`,
       );
 
       document.body.appendChild(link);
@@ -70,7 +69,7 @@ export default function ExportCenter() {
       link.href = url;
       link.setAttribute(
         "download",
-        `SMT_FULL_BACKUP_${new Date().getTime()}.json`,
+        `SMT_FULL_BACKUP_${timestampIST()}.json`,
       );
 
       document.body.appendChild(link);
@@ -86,30 +85,34 @@ export default function ExportCenter() {
     }
   };
 
-  const ExportButton = ({ label, type, icon: Icon }) => (
-    <button
-      disabled={loadingType !== null}
-      onClick={() => handleCSVDownload(type)}
-      className="group flex w-full items-center justify-between rounded-2xl bg-slate-50 p-5 transition-all hover:bg-emerald-50 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
-    >
-      <div className="flex items-center gap-4">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">
-          <Icon size={20} />
+  const ExportButton = ({ label, type, icon }) => {
+    const IconComponent = icon;
+
+    return (
+      <button
+        disabled={loadingType !== null}
+        onClick={() => handleCSVDownload(type)}
+        className="group flex w-full items-center justify-between rounded-2xl bg-slate-50 p-5 transition-all hover:bg-emerald-50 hover:shadow-md active:scale-[0.98] disabled:opacity-50"
+      >
+        <div className="flex items-center gap-4">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white text-slate-400 shadow-sm group-hover:bg-emerald-600 group-hover:text-white transition-all">
+            <IconComponent size={20} />
+          </div>
+          <span className="text-sm font-black uppercase tracking-tight text-slate-700">
+            {label}
+          </span>
         </div>
-        <span className="text-sm font-black uppercase tracking-tight text-slate-700">
-          {label}
-        </span>
-      </div>
-      {loadingType === type ? (
-        <Loader2 size={18} className="animate-spin text-emerald-600" />
-      ) : (
-        <ChevronRight
-          size={18}
-          className="text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"
-        />
-      )}
-    </button>
-  );
+        {loadingType === type ? (
+          <Loader2 size={18} className="animate-spin text-emerald-600" />
+        ) : (
+          <ChevronRight
+            size={18}
+            className="text-slate-300 group-hover:text-emerald-600 group-hover:translate-x-1 transition-all"
+          />
+        )}
+      </button>
+    );
+  };
 
   return (
     <div className="space-y-8 p-4 md:p-0 pb-24">
@@ -214,7 +217,7 @@ export default function ExportCenter() {
               )}
             </button>
             <p className="mt-4 text-center text-[10px] font-black uppercase tracking-tighter text-slate-600">
-              Last backup generated: {new Date().toLocaleDateString()}
+              Last backup generated: {formatDateIST(new Date())}
             </p>
           </div>
         </div>

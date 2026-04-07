@@ -22,6 +22,7 @@ import {
 import { Link } from "react-router-dom";
 import api from "../api";
 import toast from "react-hot-toast";
+import { formatWeekdayDateIST } from "../utils/datetime";
 
 // --- SUB-COMPONENTS ---
 
@@ -139,11 +140,7 @@ export default function Dashboard() {
             SMT Overview
           </h1>
           <p className="mt-1 font-bold text-slate-400">
-            {new Date().toLocaleDateString("en-IN", {
-              weekday: "long",
-              day: "numeric",
-              month: "long",
-            })}
+            {formatWeekdayDateIST()}
           </p>
         </div>
         <button
@@ -197,11 +194,11 @@ export default function Dashboard() {
             30-Day Performance History
           </p>
         </div>
-        <div className="h-75 w-full">
+        <div className="h-75 w-full min-w-0">
           {loading ? (
             <div className="h-full w-full animate-pulse rounded-3xl bg-slate-50" />
           ) : (
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300} debounce={1}>
               <AreaChart data={data?.chart_data}>
                 <defs>
                   <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">

@@ -2,13 +2,13 @@ import axios from "axios";
 
 /**
  * 1. CONFIGURATION
- * We use Vite's environment variables to switch between Local and Production servers.
- * Ensure you have a .env file with VITE_API_URL=http://127.0.0.1:8000/api
+ * We use Vite's environment variables to keep our API URLs flexible.
  */
 const BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000/api";
 
 const api = axios.create({
   baseURL: BASE_URL,
+  withCredentials: true, // MANDATORY: This allows the browser to send the HttpOnly refresh cookie
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -16,33 +16,67 @@ const api = axios.create({
 });
 
 /**
- * 2. REFRESH TOKEN MUTEX & QUEUE
- * Prevents multiple simultaneous refresh calls (Race Conditions).
- * If 5 requests fail at once, we only call the refresh endpoint once.
+ * 2. IN-MEMORY TOKEN STORAGE (Senior Security Move)
+ * We do NOT store the access_token in localStorage. This prevents it from being
+ * stolen by malicious scripts (XSS). It lives only in JS memory while the tab is open.
  */
+let accessToken = null;
 let isRefreshing = false;
 let failedQueue = [];
 
+export const setAccessToken = (token) => {
+  accessToken = token;
+};
+
+export const getAccessToken = () => accessToken;
+
+/**
+ * 3. REFRESH QUEUE MANAGEMENT
+ * If 5 requests fail at the same time, this ensures we only call /refresh/ once.
+ */
 const processQueue = (error, token = null) => {
-  failedQueue.forEach((prom) => {
+  failedQueue.forEach((pendingRequest) => {
     if (error) {
-      prom.reject(error);
+      pendingRequest.reject(error);
     } else {
-      prom.resolve(token);
+      pendingRequest.resolve(token);
     }
   });
   failedQueue = [];
 };
 
 /**
- * 3. REQUEST INTERCEPTOR
- * Automatically attaches the Access Token to the header of every outgoing request.
+ * 4. SILENT REFRESH LOGIC
+ * Re-authenticates the session using the HttpOnly refresh cookie.
+ * If this fails, the error bubbles up to the interceptor or caller
+ * to trigger the logout flow.
+ */
+export async function refreshAccessToken() {
+  const res = await axios.post(
+    `${BASE_URL}/auth/refresh/`,
+    {}, // Empty body; token is secured in the cookie
+    {
+      withCredentials: true,
+      headers: { Accept: "application/json" },
+    },
+  );
+
+  const { access } = res.data;
+
+  // Update the in-memory token for the SMT Fruits session
+  setAccessToken(access);
+
+  return access;
+}
+
+/**
+ * 5. REQUEST INTERCEPTOR
+ * Injects the In-Memory Access Token into the header of every outgoing request.
  */
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem("access_token");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (accessToken) {
+      config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
   },
@@ -50,17 +84,20 @@ api.interceptors.request.use(
 );
 
 /**
- * 4. RESPONSE INTERCEPTOR
- * The "Brain": Handles automatic token refreshing on 401 errors.
+ * 6. RESPONSE INTERCEPTOR
+ * Automatically detects 401 (Expired) errors and triggers the Silent Refresh.
  */
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
 
-    // Handle 401 Unauthorized (Expired Token)
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      // If a refresh is already in progress, wait in the queue
+    // Detect 401 errors, ensuring we don't loop on the /auth/ endpoints
+    if (
+      error.response?.status === 401 &&
+      !originalRequest?._retry &&
+      !originalRequest?.url?.includes("/auth/")
+    ) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -75,27 +112,10 @@ api.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem("refresh_token");
-
-      if (!refreshToken) {
-        isRefreshing = false;
-        handleSessionExpired();
-        return Promise.reject(error);
-      }
-
       try {
-        // We use a clean axios instance here to avoid infinite interceptor loops
-        const res = await axios.post(`${BASE_URL}/auth/refresh/`, {
-          refresh: refreshToken,
-        });
-
-        const { access } = res.data;
-        localStorage.setItem("access_token", access);
-
-        // Success! Resume all queued requests with the new token
-        processQueue(null, access);
-
-        // Retry the original request that failed
+        const token = await refreshAccessToken();
+        processQueue(null, token);
+        originalRequest.headers.Authorization = `Bearer ${token}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
@@ -106,7 +126,7 @@ api.interceptors.response.use(
       }
     }
 
-    // Handle 403 Forbidden (Usually means the token is malformed or invalid)
+    // 403 Forbidden usually means a malformed token or permission issue
     if (error.response?.status === 403) {
       handleSessionExpired();
     }
@@ -116,15 +136,18 @@ api.interceptors.response.use(
 );
 
 /**
- * 5. SESSION CLEANUP
- * Wipes local storage and force-redirects to login with a "session=expired" flag.
+ * 7. GLOBAL LOGOUT / SESSION CLEANUP
+ * Clears memory and redirects the user to the login screen.
  */
-function handleSessionExpired() {
-  localStorage.removeItem("access_token");
-  localStorage.removeItem("refresh_token");
-  localStorage.removeItem("user");
+export function handleSessionExpired() {
+  setAccessToken(null);
 
-  // We use window.location because we are outside the React Router context here
+  // Bridge to React state if AuthContext has registered a global logout function
+  if (typeof window.__SMT_LOGOUT__ === "function") {
+    window.__SMT_LOGOUT__();
+    return;
+  }
+
   if (window.location.pathname !== "/login") {
     window.location.href = "/login?session=expired";
   }

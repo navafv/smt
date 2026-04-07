@@ -12,6 +12,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import toast from "react-hot-toast";
+import { formatDateIST } from "../utils/datetime";
 
 export default function LossReport() {
   const [entries, setEntries] = useState([]);
@@ -56,11 +57,7 @@ export default function LossReport() {
   }, [filteredEntries]);
 
   const formatDate = (dateString) => {
-    return new Intl.DateTimeFormat("en-IN", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    }).format(new Date(dateString));
+    return formatDateIST(dateString);
   };
 
   return (
@@ -241,11 +238,11 @@ export default function LossReport() {
           <p className="text-xs font-black uppercase tracking-tight">
             Data Integrity Note
           </p>
-          <p className="text-xs font-medium leading-relaxed opacity-80">
-            Loss amounts are calculated based on the cost price at the time of
-            purchase. These figures directly reduce your net profit calculations
-            in the Business Reports.
-          </p>
+            <p className="text-xs font-medium leading-relaxed opacity-80">
+              Loss amounts are estimated from the latest recorded purchase cost
+              for each product. These figures directly reduce your net profit
+              calculations in the Business Reports.
+            </p>
         </div>
       </div>
     </div>

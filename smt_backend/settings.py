@@ -25,9 +25,13 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = config('SECRET_KEY')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = config('DEBUG', default=False)
+def cast_debug(value):
+    return str(value).strip().lower() in {'1', 'true', 'yes', 'on', 'debug', 'dev'}
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='').split(',')
+
+DEBUG = config('DEBUG', default=False, cast=cast_debug)
+
+ALLOWED_HOSTS = [host for host in config('ALLOWED_HOSTS', default='', cast=str).split(',') if host]
 
 
 # Application definition
@@ -83,6 +87,7 @@ CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
 ]
+CORS_ALLOW_CREDENTIALS = True
 
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases

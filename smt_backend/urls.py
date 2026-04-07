@@ -1,19 +1,12 @@
 from django.contrib import admin
-from django.urls import path, include
-from rest_framework_simplejwt.views import TokenRefreshView
+from django.urls import include, path
 
-# Import your custom JWT view from your serializers/views
-from fruits.serializers import MyTokenObtainPairView 
+from fruits.auth_views import CookieTokenObtainPairView, CookieTokenRefreshView, LogoutView
 
 urlpatterns = [
-    # 1. System Administration
     path('admin/', admin.site.urls),
-
-    # 2. Global Authentication (JWT)
-    path('api/auth/login/', MyTokenObtainPairView.as_view(), name='token_obtain_pair'),
-    path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
-
-    # 3. Application API (Namespaced)
-    # This includes everything from fruits/urls.py
+    path('api/auth/login/', CookieTokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('api/auth/refresh/', CookieTokenRefreshView.as_view(), name='token_refresh'),
+    path('api/auth/logout/', LogoutView.as_view(), name='token_logout'),
     path('api/', include('fruits.urls', namespace='fruits')),
 ]

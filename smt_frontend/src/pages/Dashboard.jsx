@@ -1,108 +1,64 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
-  TrendingUp,
-  ShoppingBag,
-  Wallet,
   AlertCircle,
-  Award,
-  TrendingDown,
-  RefreshCw,
   ArrowRight,
-  Activity,
+  Award,
+  RefreshCw,
+  ShoppingBag,
+  TrendingDown,
+  TrendingUp,
+  Wallet,
 } from "lucide-react";
 import {
-  AreaChart,
   Area,
+  AreaChart,
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Cell,
+  ResponsiveContainer,
+  Tooltip,
   XAxis,
   YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
 } from "recharts";
 import { Link } from "react-router-dom";
-import api from "../api";
 import toast from "react-hot-toast";
+import api from "../api";
 import { formatWeekdayDateIST } from "../utils/datetime";
 
-// --- SUB-COMPONENTS ---
-
-const StatCard = ({ title, value, icon, color, loading }) => {
-  if (loading)
-    return <div className="h-32 animate-pulse rounded-[2.5rem] bg-slate-200" />;
+const StatCard = ({ title, value, helper, icon, accent, loading }) => {
+  if (loading) {
+    return <div className="h-36 animate-pulse rounded-[2rem] bg-slate-200" />;
+  }
 
   return (
-    <div className="relative overflow-hidden rounded-4xl border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-md">
-      <div className="flex justify-between">
+    <div className="smt-kpi">
+      <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+          <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
             {title}
           </p>
-          <h3
-            className={`mt-2 text-3xl font-black tracking-tight ${color.text}`}
-          >
-            ₹{Number(value).toLocaleString("en-IN")}
+          <h3 className={`mt-3 text-3xl font-black tracking-tight ${accent}`}>
+            ₹ {Number(value || 0).toLocaleString("en-IN")}
           </h3>
+          <p className="mt-3 text-sm font-semibold text-slate-500">{helper}</p>
         </div>
-        <div
-          className={`flex h-12 w-12 items-center justify-center rounded-2xl ${color.bg} ${color.text}`}
-        >
+        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-900 text-white">
           {icon}
         </div>
       </div>
-      <div
-        className={`absolute -right-4 -bottom-4 h-16 w-16 opacity-5 ${color.text}`}
-      >
-        {icon}
-      </div>
     </div>
   );
 };
 
-const PerformanceHeatmap = ({ data }) => {
-  const getColor = (amount) => {
-    if (amount > 10000) return "bg-emerald-600";
-    if (amount > 5000) return "bg-emerald-400";
-    if (amount > 0) return "bg-emerald-200";
-    if (amount < 0) return "bg-rose-500";
-    return "bg-slate-100";
-  };
-
-  return (
-    <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
-      <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-50 text-slate-500">
-          <Activity size={22} />
-        </div>
-        <h2 className="text-xl font-black text-slate-800">Profit Intensity</h2>
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {data?.map((day, i) => (
-          <div
-            key={i}
-            title={`${day.date}: ₹${day.amount}`}
-            className={`h-6 w-6 md:h-8 md:w-8 rounded-lg transition-all hover:scale-125 cursor-help ${getColor(day.amount)}`}
-          />
-        ))}
-      </div>
-      <div className="mt-4 flex items-center gap-4">
-        <span className="text-[10px] font-bold text-slate-400 uppercase">
-          Loss
-        </span>
-        <div className="flex gap-1">
-          <div className="h-2 w-2 rounded-full bg-rose-500" />
-          <div className="h-2 w-2 rounded-full bg-slate-100" />
-          <div className="h-2 w-2 rounded-full bg-emerald-200" />
-          <div className="h-2 w-2 rounded-full bg-emerald-600" />
-        </div>
-        <span className="text-[10px] font-bold text-slate-400 uppercase">
-          High Profit
-        </span>
-      </div>
-    </div>
-  );
-};
-
-// --- MAIN DASHBOARD COMPONENT ---
+const MetricTile = ({ label, value, accent }) => (
+  <div className="rounded-[1.75rem] border border-slate-100 bg-slate-50 p-4">
+    <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+      {label}
+    </p>
+    <p className={`mt-2 text-2xl font-black tracking-tight ${accent}`}>₹ {value}</p>
+  </div>
+);
 
 export default function Dashboard() {
   const [data, setData] = useState(null);
@@ -124,201 +80,329 @@ export default function Dashboard() {
     fetchDashboardData();
   }, []);
 
-  const colors = {
-    emerald: { text: "text-emerald-600", bg: "bg-emerald-50" },
-    blue: { text: "text-blue-600", bg: "bg-blue-50" },
-    amber: { text: "text-amber-600", bg: "bg-amber-50" },
-    rose: { text: "text-rose-600", bg: "bg-rose-50" },
-  };
+  const todayBreakdown = useMemo(
+    () => [
+      {
+        label: "Profit",
+        value: Number(data?.today?.profit || 0),
+        color: "#059669",
+      },
+      {
+        label: "Expenses",
+        value: Number(data?.today?.expenses || 0),
+        color: "#f59e0b",
+      },
+      {
+        label: "Wastage",
+        value: Number(data?.today?.wastage || 0),
+        color: "#e11d48",
+      },
+    ],
+    [data],
+  );
+
+  const actionCards = useMemo(
+    () => [
+      {
+        title: "Profit vs Leakages",
+        body:
+          Number(data?.today?.profit || 0) >=
+          Number(data?.today?.wastage || 0) + Number(data?.today?.expenses || 0)
+            ? "Profit is covering today's costs. Keep stock tight and push best sellers."
+            : "Leakages are eating into margin. Review wastage and expense entries first.",
+        tone:
+          Number(data?.today?.profit || 0) >=
+          Number(data?.today?.wastage || 0) + Number(data?.today?.expenses || 0)
+            ? "border-emerald-100 bg-emerald-50"
+            : "border-rose-100 bg-rose-50",
+      },
+      {
+        title: "Stock Watch",
+        body:
+          Number(data?.low_stock_count || 0) > 0
+            ? `${data?.low_stock_count} products need replenishment soon.`
+            : "No critical stock issues right now.",
+        tone:
+          Number(data?.low_stock_count || 0) > 0
+            ? "border-amber-100 bg-amber-50"
+            : "border-slate-200 bg-slate-50",
+      },
+    ],
+    [data],
+  );
 
   return (
-    <div className="space-y-8 p-4 md:p-0 pb-20">
-      {/* --- HEADER --- */}
-      <div className="flex items-end justify-between">
+    <div className="space-y-8 p-4 pb-20 md:p-0">
+      <div className="flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div>
-          <h1 className="text-3xl font-black tracking-tight text-slate-800 md:text-4xl">
-            SMT Overview
+          <p className="text-sm font-bold tracking-wide text-emerald-600">
+            Retail Control Center
+          </p>
+          <h1 className="text-3xl font-black tracking-tight text-slate-900 md:text-4xl">
+            Today&apos;s Store Pulse
           </h1>
-          <p className="mt-1 font-bold text-slate-400">
-            {formatWeekdayDateIST()}
+          <p className="mt-1 text-sm font-semibold text-slate-500">
+            {formatWeekdayDateIST()} . Focus on profit, stock risk, and leakage.
           </p>
         </div>
         <button
+          type="button"
           onClick={fetchDashboardData}
-          className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white text-slate-400 shadow-sm border border-slate-100 transition-all hover:text-emerald-600 active:rotate-180"
+          aria-label="Refresh dashboard data"
+          className="smt-icon-button"
         >
           <RefreshCw size={20} />
         </button>
       </div>
 
-      {/* --- STATS GRID --- */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          loading={loading}
+          title="Net Profit"
+          value={data?.today?.profit}
+          helper="First number the owner should check."
+          icon={<Wallet />}
+          accent="text-emerald-600"
+        />
         <StatCard
           loading={loading}
           title="Gross Sales"
           value={data?.today?.sales}
+          helper="How much cash moved through the counter."
           icon={<TrendingUp />}
-          color={colors.emerald}
+          accent="text-slate-900"
+        />
+        <StatCard
+          loading={loading}
+          title="Leakages"
+          value={Number(data?.today?.expenses || 0) + Number(data?.today?.wastage || 0)}
+          helper="Combined impact of expenses and wastage."
+          icon={<TrendingDown />}
+          accent="text-rose-600"
         />
         <StatCard
           loading={loading}
           title="Inward Stock"
           value={data?.today?.purchases}
+          helper="Fresh stock value added to inventory."
           icon={<ShoppingBag />}
-          color={colors.blue}
-        />
-        <StatCard
-          loading={loading}
-          title="Daily Bills"
-          value={
-            Number(data?.today?.expenses || 0) +
-            Number(data?.today?.wastage || 0)
-          }
-          icon={<TrendingDown />}
-          color={colors.amber}
-        />
-        <StatCard
-          loading={loading}
-          title="Net Profit"
-          value={data?.today?.profit}
-          icon={<Wallet />}
-          color={colors.emerald}
+          accent="text-blue-600"
         />
       </div>
 
-      {/* --- REVENUE TREND --- */}
-      <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
-        <div className="mb-8">
-          <h2 className="text-xl font-black text-slate-800">Revenue Stream</h2>
-          <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">
-            30-Day Performance History
-          </p>
-        </div>
-        <div className="h-75 w-full min-w-0">
-          {loading ? (
-            <div className="h-full w-full animate-pulse rounded-3xl bg-slate-50" />
-          ) : (
-            <ResponsiveContainer width="100%" height={300} debounce={1}>
-              <AreaChart data={data?.chart_data}>
-                <defs>
-                  <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                  </linearGradient>
-                </defs>
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#f1f5f9"
-                />
-                <XAxis
-                  dataKey="date"
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fontWeight: 800, fill: "#94a3b8" }}
-                  dy={10}
-                />
-                <YAxis
-                  axisLine={false}
-                  tickLine={false}
-                  tick={{ fontSize: 10, fontWeight: 800, fill: "#94a3b8" }}
-                  tickFormatter={(v) => `₹${v}`}
-                />
-                <Tooltip
-                  contentStyle={{
-                    borderRadius: "20px",
-                    border: "none",
-                    boxShadow: "0 20px 25px -5px rgba(0,0,0,0.1)",
-                    fontWeight: "900",
-                  }}
-                  cursor={{ stroke: "#10b981", strokeWidth: 2 }}
-                />
-                <Area
-                  type="monotone"
-                  dataKey="amount"
-                  stroke="#10b981"
-                  strokeWidth={4}
-                  fillOpacity={1}
-                  fill="url(#colorSales)"
-                />
-              </AreaChart>
-            </ResponsiveContainer>
-          )}
-        </div>
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1.4fr)_minmax(320px,0.9fr)]">
+        <section className="smt-card">
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+            <div>
+              <h2 className="text-2xl font-black tracking-tight text-slate-900">
+                Net Outcome Trend
+              </h2>
+              <p className="text-sm font-semibold text-slate-500">
+                30-day line of daily performance, useful for spotting weak days fast.
+              </p>
+            </div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+              Daily net amount
+            </p>
+          </div>
+
+          <div className="mt-6 h-[320px] w-full min-w-0">
+            {loading ? (
+              <div className="h-full w-full animate-pulse rounded-[1.75rem] bg-slate-100" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data?.chart_data}>
+                  <defs>
+                    <linearGradient id="dashboardProfitFill" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis
+                    dataKey="date"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fontWeight: 700, fill: "#64748b" }}
+                  />
+                  <YAxis
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 11, fontWeight: 700, fill: "#64748b" }}
+                    tickFormatter={(value) => `₹ ${value}`}
+                  />
+                  <Tooltip
+                    formatter={(value) => [`₹ ${value}`, "Net Amount"]}
+                    contentStyle={{
+                      borderRadius: "18px",
+                      border: "1px solid #e2e8f0",
+                      boxShadow: "0 16px 30px rgba(15, 23, 42, 0.12)",
+                    }}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="amount"
+                    stroke="#059669"
+                    strokeWidth={3}
+                    fillOpacity={1}
+                    fill="url(#dashboardProfitFill)"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </section>
+
+        <section className="smt-card">
+          <div>
+            <h2 className="text-2xl font-black tracking-tight text-slate-900">
+              Today&apos;s Margin Drivers
+            </h2>
+            <p className="mt-1 text-sm font-semibold text-slate-500">
+              Shows whether the day is healthy because of profit or being dragged by losses.
+            </p>
+          </div>
+
+          <div className="mt-6 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            <MetricTile
+              label="Profit"
+              value={Number(data?.today?.profit || 0).toLocaleString("en-IN")}
+              accent="text-emerald-600"
+            />
+            <MetricTile
+              label="Expenses"
+              value={Number(data?.today?.expenses || 0).toLocaleString("en-IN")}
+              accent="text-amber-600"
+            />
+            <MetricTile
+              label="Wastage"
+              value={Number(data?.today?.wastage || 0).toLocaleString("en-IN")}
+              accent="text-rose-600"
+            />
+          </div>
+
+          <div className="mt-6 h-[220px] w-full min-w-0">
+            {loading ? (
+              <div className="h-full w-full animate-pulse rounded-[1.75rem] bg-slate-100" />
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={todayBreakdown} layout="vertical" margin={{ left: 8, right: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                  <XAxis type="number" axisLine={false} tickLine={false} hide />
+                  <YAxis
+                    type="category"
+                    dataKey="label"
+                    axisLine={false}
+                    tickLine={false}
+                    tick={{ fontSize: 12, fontWeight: 700, fill: "#475569" }}
+                    width={80}
+                  />
+                  <Tooltip formatter={(value) => [`₹ ${value}`, "Amount"]} />
+                  <Bar dataKey="value" radius={[10, 10, 10, 10]}>
+                    {todayBreakdown.map((entry) => (
+                      <Cell key={entry.label} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </section>
       </div>
 
-      {/* --- HEATMAP & LISTS --- */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <PerformanceHeatmap data={data?.chart_data} />
-
-        {/* BEST SELLERS */}
-        <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
-          <div className="mb-8 flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-500">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)_minmax(0,1fr)]">
+        <section className="smt-card">
+          <div className="flex items-center gap-3">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-amber-50 text-amber-600">
               <Award size={22} />
             </div>
-            <h2 className="text-xl font-black text-slate-800">Best Sellers</h2>
+            <div>
+              <h2 className="text-xl font-black text-slate-900">Best Sellers</h2>
+              <p className="text-sm font-semibold text-slate-500">
+                Items carrying today&apos;s volume.
+              </p>
+            </div>
           </div>
-          <div className="space-y-3">
+
+          <div className="mt-6 space-y-3">
             {!loading &&
-              data?.top_products?.map((p, i) => (
+              data?.top_products?.map((product, index) => (
                 <div
-                  key={i}
-                  className="flex items-center justify-between rounded-2xl bg-slate-50 p-4 transition-all hover:bg-slate-100"
+                  key={product.name}
+                  className="flex items-center justify-between rounded-[1.5rem] bg-slate-50 p-4"
                 >
-                  <div className="flex items-center gap-4">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-white text-xs font-black text-slate-400">
-                      {i + 1}
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-white text-sm font-black text-slate-500">
+                      {index + 1}
                     </span>
-                    <span className="font-bold text-slate-700">{p.name}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="block text-sm font-black text-slate-800">
-                      {p.sold} {p.unit}
-                    </span>
-                    <span className="text-[10px] font-bold uppercase text-slate-400">
-                      Volume Sold
-                    </span>
+                    <div>
+                      <p className="font-black text-slate-900">{product.name}</p>
+                      <p className="text-sm font-semibold text-slate-500">
+                        {product.sold} {product.unit} sold
+                      </p>
+                    </div>
                   </div>
                 </div>
               ))}
           </div>
-        </div>
+        </section>
 
-        {/* STOCK ALERTS */}
-        <div className="rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm">
-          <div className="mb-8 flex items-center justify-between">
+        <section className="smt-card">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-rose-50 text-rose-500">
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-50 text-rose-600">
                 <AlertCircle size={22} />
               </div>
-              <h2 className="text-xl font-black text-slate-800">
-                Stock Alerts
-              </h2>
+              <div>
+                <h2 className="text-xl font-black text-slate-900">Stock Alerts</h2>
+                <p className="text-sm font-semibold text-slate-500">
+                  Reorder before these items interrupt sales.
+                </p>
+              </div>
             </div>
-            <span className="rounded-full bg-rose-50 px-4 py-1 text-xs font-black text-rose-600">
-              {data?.low_stock_count} Critical
+            <span className="rounded-full bg-rose-50 px-4 py-2 text-xs font-black uppercase tracking-wide text-rose-600">
+              {data?.low_stock_count || 0} Critical
             </span>
           </div>
-          <div className="space-y-3">
+
+          <div className="mt-6 space-y-3">
             {!loading &&
-              data?.low_stock?.map((p, i) => (
+              data?.low_stock?.map((product) => (
                 <Link
                   to="/inventory"
-                  key={i}
-                  className="flex items-center justify-between rounded-2xl border-l-4 border-rose-500 bg-rose-50/30 p-4 transition-all hover:bg-rose-50/50"
+                  key={product.name}
+                  className="flex items-center justify-between rounded-[1.5rem] border border-rose-100 bg-rose-50/70 p-4 transition-all hover:bg-rose-50"
                 >
-                  <span className="font-bold text-slate-800">{p.name}</span>
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm font-black text-rose-600">
-                      {p.stock} {p.unit} Left
-                    </span>
-                    <ArrowRight size={14} className="text-rose-300" />
+                  <div>
+                    <p className="font-black text-slate-900">{product.name}</p>
+                    <p className="text-sm font-semibold text-rose-700">
+                      {product.stock} {product.unit} left
+                    </p>
                   </div>
+                  <ArrowRight size={18} className="text-rose-400" />
                 </Link>
               ))}
           </div>
-        </div>
+        </section>
+
+        <section className="space-y-4">
+          {actionCards.map((card) => (
+            <div
+              key={card.title}
+              className={`rounded-[2rem] border p-6 ${card.tone}`}
+            >
+              <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">
+                Priority Note
+              </p>
+              <h3 className="mt-3 text-xl font-black tracking-tight text-slate-900">
+                {card.title}
+              </h3>
+              <p className="mt-3 text-sm font-semibold leading-6 text-slate-600">
+                {card.body}
+              </p>
+            </div>
+          ))}
+        </section>
       </div>
     </div>
   );

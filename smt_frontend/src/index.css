@@ -4,6 +4,7 @@
 @theme {
   /* SMT Fruits Core Brand Palette */
   --color-emerald-50: #ecfdf5;
+  --color-emerald-100: #d1fae5;
   --color-emerald-500: #10b981;
   --color-emerald-600: #059669;
   --color-emerald-700: #047857;
@@ -13,6 +14,10 @@
   --color-rose-600: #e11d48;
 
   --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-200: #e2e8f0;
+  --color-slate-500: #64748b;
+  --color-slate-600: #475569;
   --color-slate-900: #0f172a;
 
   /* Typography */
@@ -20,6 +25,11 @@
 
   /* Shadows */
   --shadow-xl: 0 20px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+
+  /* POS-friendly sizing */
+  --radius-smt-card: 2rem;
+  --radius-smt-control: 1.25rem;
+  --spacing-touch: 2.75rem;
 }
 
 /* --- 2. GLOBAL RESET & BASE --- */
@@ -34,6 +44,15 @@
     font-feature-settings: "cv02", "cv03", "cv04", "ss01";
   }
 
+  button,
+  [role="button"],
+  a,
+  input,
+  select,
+  textarea {
+    @apply focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-emerald-100 focus-visible:ring-offset-2;
+  }
+
   /* Standardizing form element appearance */
   input[type="number"]::-webkit-inner-spin-button,
   input[type="number"]::-webkit-outer-spin-button {
@@ -46,7 +65,27 @@
 @layer components {
   /* Senior Move: Standardizing the "Squircle" cards used throughout SMT */
   .smt-card {
-    @apply rounded-[2.5rem] border border-slate-100 bg-white p-8 shadow-sm transition-all hover:shadow-md;
+    @apply rounded-[var(--radius-smt-card)] border border-slate-100 bg-white p-6 shadow-sm transition-all hover:shadow-md md:p-8;
+  }
+
+  .smt-panel {
+    @apply rounded-[var(--radius-smt-card)] border border-slate-100 bg-white shadow-sm;
+  }
+
+  .smt-kpi {
+    @apply rounded-[1.75rem] border border-slate-100 bg-gradient-to-br from-white via-white to-emerald-50/40 p-5 shadow-sm;
+  }
+
+  .smt-icon-button {
+    @apply flex h-11 w-11 items-center justify-center rounded-2xl border border-slate-200 bg-white text-slate-500 transition-all hover:border-emerald-200 hover:text-emerald-600;
+  }
+
+  .smt-touch-target {
+    @apply min-h-11 min-w-11;
+  }
+
+  .smt-field-label {
+    @apply mb-2 block text-xs font-bold tracking-wide text-slate-600;
   }
 
   /* Optimized scrollbar for POS item grids */

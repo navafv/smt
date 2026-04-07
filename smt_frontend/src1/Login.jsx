@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { warmUpBackend } from "./api";
 import {
   Store,
   Lock,
@@ -39,6 +40,10 @@ export default function Login() {
       });
     }
   }, [isSessionExpired]);
+
+  useEffect(() => {
+    warmUpBackend();
+  }, []);
 
   // 3. Optimized Change Handler
   const handleChange = useCallback((e) => {

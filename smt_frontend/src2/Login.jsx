@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
+import { warmUpBackend } from "./api";
 import { Store, Lock, User, Eye, EyeOff, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
 
@@ -28,6 +29,10 @@ export default function Login() {
       toast.error("Session expired. Please login again");
     }
   }, [isSessionExpired]);
+
+  useEffect(() => {
+    warmUpBackend();
+  }, []);
 
   const handleChange = useCallback((e) => {
     const { name, value } = e.target;

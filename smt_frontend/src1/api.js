@@ -7,6 +7,8 @@ import axios from "axios";
 const BASE_URL =
   import.meta.env.VITE_API_URL ||
   (import.meta.env.DEV ? "http://127.0.0.1:8000/api" : "/api");
+const WARMUP_ENABLED = import.meta.env.VITE_ENABLE_API_WARMUP !== "false";
+const ABSOLUTE_API_URL = /^https?:\/\//i.test(BASE_URL);
 
 const api = axios.create({
   baseURL: BASE_URL,
@@ -25,12 +27,30 @@ const api = axios.create({
 let accessToken = null;
 let isRefreshing = false;
 let failedQueue = [];
+let warmupPromise = null;
 
 export const setAccessToken = (token) => {
   accessToken = token;
 };
 
 export const getAccessToken = () => accessToken;
+
+export function warmUpBackend() {
+  if (!WARMUP_ENABLED || !ABSOLUTE_API_URL) {
+    return Promise.resolve();
+  }
+
+  if (!warmupPromise) {
+    warmupPromise = axios
+      .get(`${BASE_URL}/health/`, {
+        withCredentials: false,
+        timeout: 70_000,
+      })
+      .catch(() => null);
+  }
+
+  return warmupPromise;
+}
 
 /**
  * 3. REFRESH QUEUE MANAGEMENT

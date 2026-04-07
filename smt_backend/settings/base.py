@@ -30,6 +30,13 @@ CORS_ALLOWED_ORIGINS = config(
     cast=cast_csv,
 )
 CORS_ALLOW_CREDENTIALS = config("CORS_ALLOW_CREDENTIALS", default=True, cast=bool)
+REFRESH_COOKIE_NAME = config("REFRESH_COOKIE_NAME", default="refresh_token")
+REFRESH_COOKIE_PATH = config("REFRESH_COOKIE_PATH", default="/")
+REFRESH_COOKIE_SECURE = config("REFRESH_COOKIE_SECURE", default=not DEBUG, cast=bool)
+REFRESH_COOKIE_SAMESITE = config(
+    "REFRESH_COOKIE_SAMESITE",
+    default="None" if REFRESH_COOKIE_SECURE else "Lax",
+)
 
 
 INSTALLED_APPS = [
@@ -49,6 +56,7 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -115,6 +123,7 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

@@ -10,7 +10,11 @@ import {
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
 import toast from "react-hot-toast";
-import api, { refreshAccessToken, setAccessToken } from "../api";
+import api, {
+  refreshAccessToken,
+  setAccessToken,
+  warmUpBackend,
+} from "../api";
 
 const AuthContext = createContext();
 const REFRESH_BUFFER_MS = 60_000;
@@ -100,6 +104,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
+        await warmUpBackend();
         const token = await refreshAccessToken();
         if (!cancelled) {
           setupUserFromToken(token);

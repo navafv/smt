@@ -11,12 +11,11 @@ from .serializers import MyTokenObtainPairView
 
 
 def _cookie_settings():
-    secure = not settings.DEBUG
     return {
         "httponly": True,
-        "secure": secure,
-        "samesite": "Lax",
-        "path": "/",
+        "secure": settings.REFRESH_COOKIE_SECURE,
+        "samesite": settings.REFRESH_COOKIE_SAMESITE,
+        "path": settings.REFRESH_COOKIE_PATH,
     }
 
 
@@ -28,7 +27,7 @@ class CookieTokenObtainPairView(MyTokenObtainPairView):
         refresh = response.data.pop("refresh", None)
         if refresh:
             response.set_cookie(
-                "refresh_token",
+                settings.REFRESH_COOKIE_NAME,
                 refresh,
                 max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
                 **_cookie_settings(),
@@ -41,7 +40,7 @@ class CookieTokenRefreshView(APIView):
 
     def post(self, request, *args, **kwargs):
         # 1. Try to get token from cookie (HttpOnly) or fallback to body (for legacy)
-        refresh_token = request.COOKIES.get("refresh_token") or request.data.get("refresh")
+        refresh_token = request.COOKIES.get(settings.REFRESH_COOKIE_NAME) or request.data.get("refresh")
 
         if not refresh_token:
             return Response(
@@ -65,7 +64,7 @@ class CookieTokenRefreshView(APIView):
             # 4. Set the new refresh token as a secure cookie
             if new_refresh:
                 response.set_cookie(
-                    "refresh_token",
+                    settings.REFRESH_COOKIE_NAME,
                     new_refresh,
                     max_age=int(settings.SIMPLE_JWT["REFRESH_TOKEN_LIFETIME"].total_seconds()),
                     **_cookie_settings(),
@@ -80,7 +79,7 @@ class LogoutView(APIView):
     permission_classes = [AllowAny]
 
     def post(self, request, *args, **kwargs):
-        refresh_token = request.COOKIES.get("refresh_token")
+        refresh_token = request.COOKIES.get(settings.REFRESH_COOKIE_NAME)
         if refresh_token:
             try:
                 RefreshToken(refresh_token).blacklist()
@@ -88,5 +87,9 @@ class LogoutView(APIView):
                 pass
 
         response = Response(status=status.HTTP_204_NO_CONTENT)
-        response.delete_cookie("refresh_token", path="/api/auth/", samesite="Lax")
+        response.delete_cookie(
+            settings.REFRESH_COOKIE_NAME,
+            path=settings.REFRESH_COOKIE_PATH,
+            samesite=settings.REFRESH_COOKIE_SAMESITE,
+        )
         return response

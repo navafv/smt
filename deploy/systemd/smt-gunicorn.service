@@ -1,0 +1,22 @@
+[Unit]
+Description=SMT Django Gunicorn service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=<your-user>
+Group=www-data
+WorkingDirectory=/home/<your-user>/apps/smt_project
+Environment=DJANGO_SETTINGS_MODULE=smt_backend.settings.prod
+EnvironmentFile=/home/<your-user>/apps/smt_project/.env
+ExecStart=/home/<your-user>/apps/smt_project/venv/bin/gunicorn smt_backend.wsgi:application --config /home/<your-user>/apps/smt_project/deploy/gunicorn.conf.py
+Restart=always
+RestartSec=5
+KillSignal=SIGQUIT
+TimeoutStopSec=30
+PrivateTmp=true
+SyslogIdentifier=smt-gunicorn
+
+[Install]
+WantedBy=multi-user.target

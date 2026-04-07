@@ -270,6 +270,7 @@ export default function Expenses() {
                   <input
                     type="number"
                     required
+                    step="0.01"
                     placeholder="0.00"
                     className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3.5 px-4 font-black text-rose-600 outline-none focus:border-rose-500"
                     value={formData.amount}

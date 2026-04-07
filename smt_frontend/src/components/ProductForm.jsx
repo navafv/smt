@@ -155,6 +155,7 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
               type="number"
               name="stock_quantity"
               required
+              step="0.01"
               placeholder="0"
               className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
               value={formData.stock_quantity}
@@ -167,6 +168,7 @@ export default function ProductForm({ product, onSuccess, onCancel }) {
               type="number"
               name="low_stock_threshold"
               required
+              step="0.01"
               placeholder="5"
               className="w-full rounded-2xl border-2 border-slate-50 bg-slate-50 py-3 pl-11 pr-4 font-bold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:bg-white focus:ring-4 focus:ring-emerald-50"
               value={formData.low_stock_threshold}

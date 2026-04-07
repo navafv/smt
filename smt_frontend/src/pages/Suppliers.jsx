@@ -298,6 +298,7 @@ export default function Suppliers() {
                   type="number"
                   autoFocus
                   required
+                  step="0.01"
                   placeholder="0.00"
                   className="w-full border-b-4 border-slate-100 p-4 pl-12 text-center text-4xl font-black text-amber-600 outline-none focus:border-amber-500"
                   value={payAmount}

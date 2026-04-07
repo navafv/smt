@@ -27,6 +27,15 @@ export default function SalesHistory() {
 
   const receiptRef = useRef(null);
 
+  const getSubtotalAmount = (sale) => {
+    if (sale.subtotal_amount != null) {
+      return Number(sale.subtotal_amount).toFixed(2);
+    }
+    return sale.items
+      .reduce((sum, item) => sum + Number(item.subtotal || 0), 0)
+      .toFixed(2);
+  };
+
   const fetchSales = async () => {
     try {
       setLoading(true);
@@ -122,7 +131,8 @@ export default function SalesHistory() {
           Sales Ledger
         </h1>
         <p className="text-sm font-semibold text-slate-500">
-          Tracking {sales.length} transactions with fast access to reprint and share receipts.
+          Tracking {sales.length} transactions with fast access to reprint and
+          share receipts.
         </p>
       </div>
 
@@ -205,6 +215,11 @@ export default function SalesHistory() {
                   <p className="text-2xl font-black tracking-tight text-slate-900">
                     ₹ {sale.total_amount}
                   </p>
+                  {Number(sale.discount_amount || 0) > 0 && (
+                    <p className="text-xs font-bold uppercase tracking-wide text-rose-500">
+                      Discount ₹ {Number(sale.discount_amount).toFixed(2)}
+                    </p>
+                  )}
                   <p className="text-xs font-bold uppercase tracking-wide text-emerald-600">
                     Paid
                   </p>
@@ -267,7 +282,9 @@ export default function SalesHistory() {
               style={{ width: "100%", maxWidth: "380px" }}
             >
               <div className="text-center">
-                <h2 className="text-2xl font-black text-slate-900">SMT FRUITS</h2>
+                <h2 className="text-2xl font-black text-slate-900">
+                  SMT FRUITS
+                </h2>
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">
                   Kannur, Kerala
                 </p>
@@ -277,7 +294,9 @@ export default function SalesHistory() {
               <div className="mb-6 space-y-2 text-sm font-semibold text-slate-600">
                 <div className="flex items-center justify-between gap-4">
                   <span>Order ID</span>
-                  <span className="font-black text-slate-900">#SMT-{selectedSale.id}</span>
+                  <span className="font-black text-slate-900">
+                    #SMT-{selectedSale.id}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4">
                   <span>Date</span>
@@ -306,13 +325,29 @@ export default function SalesHistory() {
                         {item.quantity} x ₹ {item.unit_price}
                       </p>
                     </div>
-                    <span className="font-black text-slate-800">₹ {item.subtotal}</span>
+                    <span className="font-black text-slate-800">
+                      ₹ {item.subtotal}
+                    </span>
                   </div>
                 ))}
               </div>
 
               <div className="mt-4 border-t-2 border-slate-900 pt-4">
-                <div className="flex items-end justify-between">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
+                    <span>Subtotal</span>
+                    <span className="font-black text-slate-900">
+                      ₹ {getSubtotalAmount(selectedSale)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
+                    <span>Discount</span>
+                    <span className="font-black text-rose-600">
+                      -₹ {Number(selectedSale.discount_amount || 0).toFixed(2)}
+                    </span>
+                  </div>
+                </div>
+                <div className="mt-4 flex items-end justify-between">
                   <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-500">
                     Grand Total
                   </span>
@@ -354,7 +389,11 @@ export default function SalesHistory() {
                     disabled={isPrinting}
                     className="no-print flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-4 py-4 font-black text-white"
                   >
-                    {isPrinting ? <Loader2 className="animate-spin" size={18} /> : <Printer size={18} />}
+                    {isPrinting ? (
+                      <Loader2 className="animate-spin" size={18} />
+                    ) : (
+                      <Printer size={18} />
+                    )}
                     Print Bill
                   </button>
                   <button
@@ -363,7 +402,11 @@ export default function SalesHistory() {
                     disabled={isSharing}
                     className="no-print flex items-center justify-center gap-2 rounded-2xl bg-blue-600 px-4 py-4 font-black text-white"
                   >
-                    {isSharing ? <Loader2 className="animate-spin" size={18} /> : <Share2 size={18} />}
+                    {isSharing ? (
+                      <Loader2 className="animate-spin" size={18} />
+                    ) : (
+                      <Share2 size={18} />
+                    )}
                     Share
                   </button>
                   <button
@@ -377,7 +420,9 @@ export default function SalesHistory() {
               </div>
 
               <div className="rounded-[2rem] bg-white p-6 shadow-2xl">
-                <h4 className="text-lg font-black text-slate-900">Order Summary</h4>
+                <h4 className="text-lg font-black text-slate-900">
+                  Order Summary
+                </h4>
                 <div className="mt-4 grid gap-3 sm:grid-cols-2">
                   <div className="rounded-[1.5rem] bg-slate-50 p-4">
                     <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
@@ -401,6 +446,22 @@ export default function SalesHistory() {
                     </p>
                     <p className="mt-2 text-lg font-black text-slate-900">
                       {selectedSale.items.length}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Subtotal
+                    </p>
+                    <p className="mt-2 text-lg font-black text-slate-900">
+                      ₹ {getSubtotalAmount(selectedSale)}
+                    </p>
+                  </div>
+                  <div className="rounded-[1.5rem] bg-slate-50 p-4">
+                    <p className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                      Discount
+                    </p>
+                    <p className="mt-2 text-lg font-black text-rose-600">
+                      -₹ {Number(selectedSale.discount_amount || 0).toFixed(2)}
                     </p>
                   </div>
                   <div className="rounded-[1.5rem] bg-slate-50 p-4">

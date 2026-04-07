@@ -16,9 +16,14 @@ import toast from "react-hot-toast";
 import api from "../api";
 
 export default function QuickSale() {
+  const roundMoney = (value) =>
+    Number.parseFloat((Number(value) || 0).toFixed(2));
+  const toNumber = (value) => Number.parseFloat(value || 0);
+
   const [products, setProducts] = useState([]);
   const [customers, setCustomers] = useState([]);
   const [cart, setCart] = useState([]);
+  const [discount, setDiscount] = useState("0.00");
   const [searchTerm, setSearchTerm] = useState("");
   const [paymentType, setPaymentType] = useState("cash");
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -79,7 +84,7 @@ export default function QuickSale() {
             ? {
                 ...item,
                 quantity: item.quantity + 1,
-                subtotal: (item.quantity + 1) * item.unit_price,
+                subtotal: roundMoney((item.quantity + 1) * item.unit_price),
               }
             : item,
         );
@@ -91,22 +96,22 @@ export default function QuickSale() {
           product: product.id,
           product_name: product.name,
           quantity: 1,
-          unit_price: Number(product.price_per_unit),
-          subtotal: Number(product.price_per_unit),
+          unit_price: toNumber(product.price_per_unit),
+          subtotal: roundMoney(product.price_per_unit),
           unit: product.unit,
         },
       ];
     });
   };
 
-  const updateQuantity = (id, delta) => {
+  const updateQuantity = (id, nextValue) => {
     setCart((prev) =>
       prev
         .map((item) => {
           if (item.product !== id) return item;
 
           const product = productMap.get(id);
-          const nextQuantity = Math.max(0, item.quantity + delta);
+          const nextQuantity = Math.max(0, toNumber(nextValue));
 
           if (product && nextQuantity > Number(product.stock_quantity)) {
             toast.error(`Only ${product.stock_quantity} ${product.unit} available.`);
@@ -116,16 +121,26 @@ export default function QuickSale() {
           return {
             ...item,
             quantity: nextQuantity,
-            subtotal: nextQuantity * item.unit_price,
+            subtotal: roundMoney(nextQuantity * item.unit_price),
           };
         })
         .filter((item) => item.quantity > 0),
     );
   };
 
-  const total = useMemo(
-    () => cart.reduce((sum, item) => sum + Number(item.subtotal), 0),
+  const subtotal = useMemo(
+    () => roundMoney(cart.reduce((sum, item) => sum + Number(item.subtotal), 0)),
     [cart],
+  );
+
+  const discountAmount = useMemo(() => {
+    const parsedDiscount = roundMoney(discount || 0);
+    return Math.min(parsedDiscount, subtotal);
+  }, [discount, subtotal]);
+
+  const total = useMemo(
+    () => roundMoney(subtotal - discountAmount),
+    [discountAmount, subtotal],
   );
 
   const itemCount = useMemo(
@@ -143,19 +158,24 @@ export default function QuickSale() {
     setIsSubmitting(true);
     try {
       const saleRes = await api.post("/sales/", {
-        total_amount: total,
+        total_amount: total.toFixed(2),
+        discount_amount: discountAmount.toFixed(2),
         payment_type: paymentType,
-        customer: selectedCustomer || null,
+        customer:
+          paymentType === "credit" && selectedCustomer
+            ? Number(selectedCustomer)
+            : null,
         items: cart.map((item) => ({
           product: item.product,
-          quantity: item.quantity,
-          unit_price: item.unit_price,
-          subtotal: item.subtotal,
+          quantity: item.quantity.toFixed(2),
+          unit_price: item.unit_price.toFixed(2),
+          subtotal: item.subtotal.toFixed(2),
         })),
       });
 
       toast.success(`Sale #SMT-${saleRes.data.id} completed.`);
       setCart([]);
+      setDiscount("0.00");
       setSelectedCustomer("");
       setPaymentType("cash");
       setShowCartMobile(false);
@@ -170,6 +190,7 @@ export default function QuickSale() {
       const message =
         error.response?.data?.detail ||
         error.response?.data?.customer?.[0] ||
+        error.response?.data?.discount_amount?.[0] ||
         error.response?.data?.items?.[0] ||
         error.response?.data?.quantity?.[0] ||
         "Transaction failed.";
@@ -206,7 +227,7 @@ export default function QuickSale() {
                     Active Total
                   </p>
                   <p className="mt-2 text-3xl font-black tracking-tight">
-                    ₹ {total}
+                    ₹ {total.toFixed(2)}
                   </p>
                 </div>
                 <div className="rounded-[1.75rem] border border-emerald-100 bg-emerald-50 p-4 text-emerald-900">
@@ -363,7 +384,7 @@ export default function QuickSale() {
                 <p className="text-[11px] font-black uppercase tracking-wide text-slate-400">
                   View Cart
                 </p>
-                <p className="text-lg font-black">₹ {total}</p>
+                <p className="text-lg font-black">₹ {total.toFixed(2)}</p>
               </div>
             </div>
             <div className="flex items-center gap-1 text-sm font-black uppercase text-emerald-400">
@@ -414,8 +435,45 @@ export default function QuickSale() {
                   Grand Total
                 </p>
                 <p className="text-4xl font-black tracking-tight text-slate-900">
-                  ₹ {total}
+                  ₹ {total.toFixed(2)}
                 </p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 rounded-[1.25rem] border border-slate-200 bg-white p-4">
+              <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
+                <span>Subtotal</span>
+                <span className="font-black text-slate-900">
+                  ₹ {subtotal.toFixed(2)}
+                </span>
+              </div>
+              <div>
+                <label
+                  htmlFor="quick-sale-discount"
+                  className="mb-2 block text-[11px] font-bold uppercase tracking-wide text-slate-500"
+                >
+                  Total Discount
+                </label>
+                <input
+                  id="quick-sale-discount"
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  placeholder="0.00"
+                  className="w-full rounded-2xl border-2 border-slate-200 bg-white px-4 py-3 font-black text-slate-900 outline-none focus:border-emerald-500"
+                  value={discount}
+                  onChange={(e) => setDiscount(e.target.value)}
+                />
+                {discountAmount !== roundMoney(discount || 0) && (
+                  <p className="mt-2 text-xs font-semibold text-orange-600">
+                    Discount capped at the current subtotal.
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center justify-between text-sm font-semibold text-slate-500">
+                <span>Applied Discount</span>
+                <span className="font-black text-rose-600">
+                  -₹ {discountAmount.toFixed(2)}
+                </span>
               </div>
             </div>
           </div>
@@ -458,18 +516,23 @@ export default function QuickSale() {
                   <div className="flex items-center gap-3 rounded-2xl bg-slate-100 p-1.5">
                     <button
                       type="button"
-                      onClick={() => updateQuantity(item.product, -1)}
+                      onClick={() => updateQuantity(item.product, item.quantity - 1)}
                       aria-label={`Decrease quantity for ${item.product_name}`}
                       className="smt-touch-target flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm active:bg-rose-50"
                     >
                       <Minus size={16} />
                     </button>
-                    <span className="w-8 text-center text-base font-black">
-                      {item.quantity}
-                    </span>
+                    <input
+                      type="number"
+                      min="0"
+                      step={item.unit === "pcs" || item.unit === "box" ? "1" : "0.01"}
+                      className="w-16 rounded-lg border border-slate-200 bg-white px-2 py-2 text-center text-base font-black text-slate-900 outline-none focus:border-emerald-500"
+                      value={item.quantity}
+                      onChange={(e) => updateQuantity(item.product, e.target.value)}
+                    />
                     <button
                       type="button"
-                      onClick={() => updateQuantity(item.product, 1)}
+                      onClick={() => updateQuantity(item.product, item.quantity + 1)}
                       aria-label={`Increase quantity for ${item.product_name}`}
                       className="smt-touch-target flex h-11 w-11 items-center justify-center rounded-xl bg-white text-slate-600 shadow-sm active:bg-emerald-50"
                     >
@@ -478,7 +541,7 @@ export default function QuickSale() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => updateQuantity(item.product, -item.quantity)}
+                    onClick={() => updateQuantity(item.product, 0)}
                     className="rounded-2xl px-4 py-3 text-xs font-black uppercase tracking-wide text-rose-600 transition-colors hover:bg-rose-50"
                   >
                     Remove

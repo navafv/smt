@@ -16,28 +16,34 @@ import toast from "react-hot-toast";
 
 export default function Returns() {
   const [products, setProducts] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState({
     product: "",
+    supplier: "",
     return_type: "wastage",
     quantity: "",
     reason: "",
   });
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchFormData = async () => {
       try {
-        const res = await api.get("/products/");
-        setProducts(res.data);
+        const [productsRes, suppliersRes] = await Promise.all([
+          api.get("/products/"),
+          api.get("/suppliers/"),
+        ]);
+        setProducts(productsRes.data);
+        setSuppliers(suppliersRes.data);
       } catch {
-        toast.error("Failed to load product list.");
+        toast.error("Failed to load adjustment form data.");
       } finally {
         setLoading(false);
       }
     };
-    fetchProducts();
+    fetchFormData();
   }, []);
 
   const handleSubmit = async (e) => {
@@ -45,16 +51,25 @@ export default function Returns() {
     if (!formData.product) return toast.error("Please select a product");
     if (!formData.quantity || formData.quantity <= 0)
       return toast.error("Enter a valid quantity");
+    if (formData.return_type === "supplier" && !formData.supplier)
+      return toast.error("Please select a supplier");
 
     setIsSubmitting(true);
     try {
-      await api.post("/stock-returns/", formData);
+      await api.post("/stock-returns/", {
+        ...formData,
+        supplier:
+          formData.return_type === "supplier" && formData.supplier
+            ? Number(formData.supplier)
+            : null,
+      });
       toast.success("Inventory adjusted successfully!", {
         icon: formData.return_type === "wastage" ? "📉" : "🔄",
       });
 
       setFormData({
         product: "",
+        supplier: "",
         return_type: "wastage",
         quantity: "",
         reason: "",
@@ -152,7 +167,11 @@ export default function Returns() {
                 className={`w-full appearance-none rounded-2xl border-2 bg-slate-50 py-4 pl-12 pr-10 font-bold text-slate-700 outline-none transition-all focus:bg-white ${style.border} focus:border-slate-800`}
                 value={formData.return_type}
                 onChange={(e) =>
-                  setFormData({ ...formData, return_type: e.target.value })
+                  setFormData({
+                    ...formData,
+                    return_type: e.target.value,
+                    supplier: e.target.value === "supplier" ? formData.supplier : "",
+                  })
                 }
               >
                 <option value="wastage">Wastage / Spoiled</option>
@@ -190,6 +209,35 @@ export default function Returns() {
             </div>
           </div>
         </div>
+
+        {formData.return_type === "supplier" && (
+          <div className="space-y-1.5">
+            <label className="px-1 text-[10px] font-black uppercase tracking-widest text-slate-400">
+              Supplier
+            </label>
+            <div className="relative">
+              <Truck
+                className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"
+                size={18}
+              />
+              <select
+                required
+                className="w-full appearance-none rounded-2xl border-2 border-slate-50 bg-slate-50 py-4 pl-12 pr-10 font-bold text-slate-700 outline-none transition-all focus:border-slate-800 focus:bg-white"
+                value={formData.supplier}
+                onChange={(e) =>
+                  setFormData({ ...formData, supplier: e.target.value })
+                }
+              >
+                <option value="">Choose supplier...</option>
+                {suppliers.map((supplier) => (
+                  <option key={supplier.id} value={supplier.id}>
+                    {supplier.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
           {/* Quantity */}

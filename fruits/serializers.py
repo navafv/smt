@@ -1,3 +1,5 @@
+from decimal import Decimal, ROUND_HALF_UP
+
 from django.db import transaction
 from django.db.models import F
 from rest_framework import serializers
@@ -74,10 +76,29 @@ class PurchaseItemSerializer(serializers.ModelSerializer):
 class SaleSerializer(serializers.ModelSerializer):
     items = SaleItemSerializer(many=True)
     customer_name = serializers.ReadOnlyField(source="customer.name")
+    subtotal_amount = serializers.SerializerMethodField()
 
     class Meta:
         model = Sale
-        fields = ["id", "customer", "customer_name", "total_amount", "payment_type", "items", "created_at"]
+        fields = [
+            "id",
+            "customer",
+            "customer_name",
+            "discount_amount",
+            "subtotal_amount",
+            "total_amount",
+            "payment_type",
+            "items",
+            "created_at",
+        ]
+
+    @staticmethod
+    def _quantize_amount(value):
+        return Decimal(value).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+
+    def get_subtotal_amount(self, obj):
+        subtotal = sum((item.subtotal for item in obj.items.all()), Decimal("0"))
+        return self._quantize_amount(subtotal)
 
     def validate(self, data):
         items = data.get("items") or []
@@ -85,6 +106,19 @@ class SaleSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError({"items": "At least one sale item is required."})
         if data.get("payment_type") == "credit" and not data.get("customer"):
             raise serializers.ValidationError({"customer": "Customer is required for credit sales."})
+
+        subtotal_amount = sum((item["subtotal"] for item in items), Decimal("0"))
+        discount_amount = data.get("discount_amount", Decimal("0"))
+
+        if discount_amount < 0:
+            raise serializers.ValidationError({"discount_amount": "Discount cannot be negative."})
+        if discount_amount > subtotal_amount:
+            raise serializers.ValidationError({
+                "discount_amount": "Discount cannot be greater than the sum of item subtotals."
+            })
+
+        data["discount_amount"] = self._quantize_amount(discount_amount)
+        data["total_amount"] = self._quantize_amount(subtotal_amount - discount_amount)
         return data
 
     @transaction.atomic

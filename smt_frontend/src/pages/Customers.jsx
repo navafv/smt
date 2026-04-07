@@ -299,6 +299,7 @@ export default function Customers() {
                   type="number"
                   autoFocus
                   required
+                  step="0.01"
                   placeholder="0.00"
                   className="w-full border-b-4 border-slate-100 p-4 pl-12 text-center text-4xl font-black text-emerald-600 outline-none transition-all focus:border-emerald-500"
                   value={payAmount}

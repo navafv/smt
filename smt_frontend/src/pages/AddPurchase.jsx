@@ -82,7 +82,6 @@ export default function AddPurchase() {
     e.preventDefault();
 
     // Validation
-    if (!selectedSupplier) return toast.error("Please select a supplier");
     if (
       items.some((item) => !item.product || !item.quantity || !item.unit_price)
     ) {
@@ -92,13 +91,13 @@ export default function AddPurchase() {
     setIsSubmitting(true);
     try {
       await api.post("/purchases/", {
-        supplier: selectedSupplier,
+        supplier: selectedSupplier ? Number(selectedSupplier) : null,
         total_amount: total,
         items: items.map((item) => ({
-          ...item,
-          quantity: parseFloat(item.quantity),
-          unit_price: parseFloat(item.unit_price),
-          subtotal: parseFloat(item.subtotal),
+          product: Number(item.product),
+          quantity: parseFloat(item.quantity).toFixed(2),
+          unit_price: parseFloat(item.unit_price).toFixed(2),
+          subtotal: parseFloat(item.subtotal).toFixed(2),
         })),
       });
 
@@ -152,7 +151,7 @@ export default function AddPurchase() {
               value={selectedSupplier}
               onChange={(e) => setSelectedSupplier(e.target.value)}
             >
-              <option value="">Choose Supplier</option>
+              <option value="">Direct Purchase / No Supplier</option>
               {suppliers.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -207,6 +206,7 @@ export default function AddPurchase() {
                 </label>
                 <input
                   type="number"
+                  step="0.01"
                   placeholder="0"
                   className="w-full rounded-xl border-2 border-transparent bg-white p-3 font-bold text-slate-700 outline-none focus:border-amber-500"
                   value={item.quantity}
@@ -227,6 +227,7 @@ export default function AddPurchase() {
                   </span>
                   <input
                     type="number"
+                    step="0.01"
                     placeholder="0.00"
                     className="w-full rounded-xl border-2 border-transparent bg-white p-3 pl-7 font-bold text-slate-700 outline-none focus:border-amber-500"
                     value={item.unit_price}

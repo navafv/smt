@@ -78,7 +78,7 @@ const navGroups = [
         path: "/export",
         icon: <Database size={18} />,
       },
-      { name: "Admin Panel", path: "http://127.0.0.1:8000/admin", icon: <Settings size={18} /> },
+      { name: "Admin Panel", path: "https://smt-project.onrender.com/admin", icon: <Settings size={18} /> },
     ],
   },
 ];

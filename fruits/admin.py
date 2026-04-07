@@ -9,7 +9,7 @@ from .models import (
 admin.site.site_header = "Fruits Admin"
 admin.site.site_title = "Fruits Admin Portal"
 admin.site.index_title = "Welcome to Fruits Management System"
-admin.site.site_url = "http://localhost:5173/"
+admin.site.site_url = "https://smtapp.vercel.app/"
 
 # ==========================================
 # INLINES (For "One-Page" Editing)

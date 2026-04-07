@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import {
   FileText,
   TrendingUp,
@@ -13,29 +13,82 @@ import toast from "react-hot-toast";
 import api from "../api";
 import { formatDateIST, todayIST } from "../utils/datetime";
 
+const SummaryCard = ({ title, value, icon, colorClass, subtitle }) => {
+  const IconComponent = icon;
+
+  return (
+    <div className="relative overflow-hidden rounded-4xl border border-slate-100 bg-white p-8 shadow-sm transition-all hover:shadow-md">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+            {title}
+          </p>
+          <h3 className="mt-2 text-3xl font-black text-slate-900">
+            ₹{Number(value).toLocaleString("en-IN")}
+          </h3>
+          {subtitle && (
+            <p className="mt-1 text-xs font-bold italic text-slate-400">
+              {subtitle}
+            </p>
+          )}
+        </div>
+        <div className={`rounded-2xl p-3 ${colorClass}`}>
+          <IconComponent size={24} />
+        </div>
+      </div>
+      <div className={`absolute -bottom-4 -right-4 opacity-5 ${colorClass}`}>
+        <IconComponent size={64} />
+      </div>
+    </div>
+  );
+};
+
 export default function Reports() {
   const today = todayIST();
   const [dates, setDates] = useState({ start: today, end: today });
   const [reportData, setReportData] = useState(null);
   const [loading, setLoading] = useState(false);
 
-  const fetchReport = useCallback(async () => {
-    try {
-      setLoading(true);
-      const res = await api.get(
-        `/reports/?start_date=${dates.start}&end_date=${dates.end}`,
-      );
-      setReportData(res.data);
-      toast.success("Report synchronized");
-    } catch {
-      toast.error("Failed to generate report.");
-    } finally {
-      setLoading(false);
-    }
-  }, [dates.end, dates.start]);
+  // FIXED: Using a Ref to track if the component is mounted to prevent memory leaks/errors
+  const isMounted = useRef(true);
 
   useEffect(() => {
-    fetchReport();
+    isMounted.current = true;
+    return () => {
+      isMounted.current = false;
+    };
+  }, []);
+
+  const fetchReport = useCallback(
+    async (silent = true) => {
+      try {
+        if (isMounted.current) setLoading(true);
+
+        const res = await api.get(
+          `/reports/?start_date=${dates.start}&end_date=${dates.end}`,
+        );
+
+        if (isMounted.current) {
+          setReportData(res.data);
+          if (!silent) {
+            toast.success("Report synchronized");
+          }
+        }
+      } catch {
+        if (isMounted.current) {
+          toast.error("Failed to generate report.");
+        }
+      } finally {
+        if (isMounted.current) {
+          setLoading(false);
+        }
+      }
+    },
+    [dates.end, dates.start],
+  );
+
+  useEffect(() => {
+    fetchReport(true);
   }, [fetchReport]);
 
   const exportToCSV = () => {
@@ -53,7 +106,9 @@ export default function Reports() {
       sale.payment_type.toUpperCase(),
     ]);
 
-    const csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n");
+    const csvContent = [headers, ...rows]
+      .map((row) => row.join(","))
+      .join("\n");
     const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
@@ -67,36 +122,6 @@ export default function Reports() {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
     toast.success("CSV downloaded");
-  };
-
-  const SummaryCard = ({ title, value, icon, colorClass, subtitle }) => {
-    const IconComponent = icon;
-
-    return (
-      <div className="relative overflow-hidden rounded-4xl border border-slate-100 bg-white p-8 shadow-sm transition-all hover:shadow-md">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-              {title}
-            </p>
-            <h3 className="mt-2 text-3xl font-black text-slate-900">
-              ₹{Number(value).toLocaleString("en-IN")}
-            </h3>
-            {subtitle && (
-              <p className="mt-1 text-xs font-bold italic text-slate-400">
-                {subtitle}
-              </p>
-            )}
-          </div>
-          <div className={`rounded-2xl p-3 ${colorClass}`}>
-            <IconComponent size={24} />
-          </div>
-        </div>
-        <div className={`absolute -bottom-4 -right-4 opacity-5 ${colorClass}`}>
-          <IconComponent size={64} />
-        </div>
-      </div>
-    );
   };
 
   return (
@@ -150,8 +175,9 @@ export default function Reports() {
               onChange={(e) => setDates({ ...dates, end: e.target.value })}
             />
           </div>
+          {/* FIXED: Added arrow function () => fetchReport(false) to prevent immediate execution */}
           <button
-            onClick={fetchReport}
+            onClick={() => fetchReport(false)}
             disabled={loading}
             className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 py-3.5 font-black text-white transition-all hover:bg-black"
           >
@@ -224,7 +250,9 @@ export default function Reports() {
                   {reportData.details.sales_list.map((sale) => (
                     <tr key={sale.id} className="group hover:bg-slate-50/50">
                       <td className="p-6">
-                        <p className="font-black text-slate-800">#SMT-{sale.id}</p>
+                        <p className="font-black text-slate-800">
+                          #SMT-{sale.id}
+                        </p>
                         <p className="text-[10px] font-bold uppercase tracking-tighter text-slate-400">
                           Order ID
                         </p>

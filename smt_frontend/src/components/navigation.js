@@ -1,8 +1,11 @@
 import {
+  AlertTriangle,
   BarChart3,
   Boxes,
   ClipboardList,
   CreditCard,
+  FileSpreadsheet,
+  ArchiveRestore,
   LayoutDashboard,
   PackagePlus,
   Receipt,
@@ -10,8 +13,6 @@ import {
   Truck,
   Users,
   Wallet,
-  ArchiveRestore,
-  FileSpreadsheet,
 } from "lucide-react";
 
 // Main navigation for bottom tab bar (5 items max for mobile)
@@ -42,6 +43,7 @@ export const drawerNavItems = [
       { label: "Suppliers", path: "/suppliers", icon: Truck },
       { label: "Purchases", path: "/purchases", icon: ClipboardList },
       { label: "Add Purchase", path: "/purchases/new", icon: PackagePlus },
+      { label: "Stock Status", path: "/inventory/stock", icon: Boxes },
       { label: "Expenses", path: "/expenses", icon: Wallet },
     ],
   },
@@ -50,6 +52,7 @@ export const drawerNavItems = [
     items: [
       { label: "Payments", path: "/payments", icon: CreditCard },
       { label: "Returns", path: "/returns", icon: ArchiveRestore },
+      { label: "Loss Report", path: "/reports/loss", icon: AlertTriangle },
       { label: "Exports", path: "/exports", icon: FileSpreadsheet },
     ],
   },

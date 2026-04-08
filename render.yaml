@@ -4,8 +4,8 @@ services:
     runtime: python
     plan: free
     healthCheckPath: /api/health/
-    buildCommand: pip install -r requirements.txt && python manage.py migrate && python manage.py collectstatic --noinput
-    startCommand: gunicorn smt_backend.wsgi:application --bind 0.0.0.0:$PORT
+    buildCommand: pip install -r requirements.txt && python manage.py collectstatic --noinput
+    startCommand: python manage.py migrate && gunicorn smt_backend.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
       - key: DJANGO_SETTINGS_MODULE
         value: smt_backend.settings.prod
@@ -18,7 +18,7 @@ services:
       - key: DEBUG
         value: "False"
       - key: ALLOWED_HOSTS
-        value: smt-backend.onrender.com
+        value: smt-project.onrender.com
       - key: FRONTEND_APP_URL
         sync: false
       - key: CSRF_TRUSTED_ORIGINS

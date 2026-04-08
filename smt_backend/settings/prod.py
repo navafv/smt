@@ -5,7 +5,11 @@ from .base import *  # noqa: F403,F401
 
 DEBUG = False
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="", cast=cast_csv)
+ALLOWED_HOSTS = config(
+    "ALLOWED_HOSTS",
+    default="smt-backend.onrender.com,127.0.0.1,localhost",
+    cast=cast_csv,
+)
 CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", default="", cast=cast_csv)
 CORS_ALLOWED_ORIGINS = config("CORS_ALLOWED_ORIGINS", default="", cast=cast_csv)
 

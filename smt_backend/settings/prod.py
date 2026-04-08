@@ -3,7 +3,7 @@ from decouple import config
 from .base import *  # noqa: F403,F401
 
 
-DEBUG = True
+DEBUG = False
 
 ALLOWED_HOSTS = config(
     "ALLOWED_HOSTS",

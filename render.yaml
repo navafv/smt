@@ -3,6 +3,7 @@ services:
     name: smt-backend
     runtime: python
     plan: free
+    healthCheckPath: /api/health/
     buildCommand: pip install -r requirements.txt && python manage.py migrate && python manage.py collectstatic --noinput
     startCommand: gunicorn smt_backend.wsgi:application --bind 0.0.0.0:$PORT
     envVars:
@@ -18,12 +19,20 @@ services:
         value: "False"
       - key: ALLOWED_HOSTS
         value: smt-backend.onrender.com
+      - key: FRONTEND_APP_URL
+        sync: false
       - key: CSRF_TRUSTED_ORIGINS
         sync: false
       - key: CORS_ALLOWED_ORIGINS
         sync: false
       - key: DATABASE_URL
         sync: false
+      - key: SECURE_SSL_REDIRECT
+        value: "True"
+      - key: SECURE_HSTS_SECONDS
+        value: "31536000"
+      - key: REFRESH_COOKIE_PATH
+        value: /api/auth/
       - key: REFRESH_COOKIE_SECURE
         value: "True"
       - key: REFRESH_COOKIE_SAMESITE

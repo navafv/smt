@@ -1,4 +1,5 @@
 from django.contrib import admin
+from django.conf import settings
 from django.utils.html import format_html
 
 from .models import (
@@ -18,7 +19,7 @@ from .models import (
 admin.site.site_header = "Fruits Admin"
 admin.site.site_title = "Fruits Admin Portal"
 admin.site.index_title = "Welcome to Fruits Management System"
-admin.site.site_url = "https://smtapp.vercel.app/"
+admin.site.site_url = settings.FRONTEND_APP_URL or "/"
 
 
 # ==========================================

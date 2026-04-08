@@ -61,9 +61,11 @@ Set these in Render after you know your real domains:
 DJANGO_SETTINGS_MODULE=smt_backend.settings.prod
 DEBUG=False
 DATABASE_URL=postgresql://...
+FRONTEND_APP_URL=https://your-vercel-app.vercel.app
 ALLOWED_HOSTS=your-render-service.onrender.com
 CSRF_TRUSTED_ORIGINS=https://your-vercel-app.vercel.app
 CORS_ALLOWED_ORIGINS=https://your-vercel-app.vercel.app
+REFRESH_COOKIE_PATH=/api/auth/
 REFRESH_COOKIE_SECURE=True
 REFRESH_COOKIE_SAMESITE=None
 ```
@@ -81,6 +83,7 @@ Create the Vercel project with:
 
 ```env
 VITE_API_URL=https://your-render-service.onrender.com/api
+VITE_ADMIN_URL=https://your-render-service.onrender.com/admin/
 VITE_ENABLE_API_WARMUP=true
 ```
 

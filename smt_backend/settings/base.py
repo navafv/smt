@@ -1,5 +1,6 @@
 from datetime import timedelta
 from pathlib import Path
+from urllib.parse import urlparse
 
 from decouple import config
 
@@ -20,6 +21,35 @@ def cast_csv(value):
     return [item.strip() for item in str(value).split(",") if item.strip()]
 
 
+def normalize_origin(value):
+    value = str(value).strip().rstrip("/")
+    if not value:
+        return ""
+    parsed = urlparse(value)
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return value
+
+
+def extract_host(value):
+    normalized = normalize_origin(value)
+    if not normalized:
+        return ""
+    parsed = urlparse(normalized if "://" in normalized else f"https://{normalized}")
+    return parsed.netloc or parsed.path
+
+
+def unique_list(*groups):
+    values = []
+    seen = set()
+    for group in groups:
+        for item in group:
+            if item and item not in seen:
+                seen.add(item)
+                values.append(item)
+    return values
+
+
 SECRET_KEY = config("SECRET_KEY")
 DEBUG = config("DEBUG", default=False, cast=cast_debug)
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="127.0.0.1,localhost", cast=cast_csv)
@@ -30,8 +60,11 @@ CORS_ALLOWED_ORIGINS = config(
     cast=cast_csv,
 )
 CORS_ALLOW_CREDENTIALS = config("CORS_ALLOW_CREDENTIALS", default=True, cast=bool)
+FRONTEND_APP_URL = normalize_origin(config("FRONTEND_APP_URL", default=""))
+BACKEND_APP_URL = normalize_origin(config("BACKEND_APP_URL", default=""))
 REFRESH_COOKIE_NAME = config("REFRESH_COOKIE_NAME", default="refresh_token")
-REFRESH_COOKIE_PATH = config("REFRESH_COOKIE_PATH", default="/")
+REFRESH_COOKIE_PATH = config("REFRESH_COOKIE_PATH", default="/api/auth/")
+REFRESH_COOKIE_DOMAIN = config("REFRESH_COOKIE_DOMAIN", default="")
 REFRESH_COOKIE_SECURE = config("REFRESH_COOKIE_SECURE", default=not DEBUG, cast=bool)
 REFRESH_COOKIE_SAMESITE = config(
     "REFRESH_COOKIE_SAMESITE",
@@ -100,6 +133,9 @@ else:
         }
     }
 
+if DATABASES["default"]["ENGINE"] != "django.db.backends.sqlite3":
+    DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
+
 AUTH_PASSWORD_VALIDATORS = [
     {
         "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator",
@@ -118,7 +154,6 @@ AUTH_PASSWORD_VALIDATORS = [
 LANGUAGE_CODE = "en-us"
 TIME_ZONE = "Asia/Kolkata"
 USE_I18N = True
-USE_L10N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"

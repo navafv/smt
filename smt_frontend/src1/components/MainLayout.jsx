@@ -23,6 +23,13 @@ import {
   ChevronRight,
 } from "lucide-react";
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || "";
+const ADMIN_PANEL_URL =
+  import.meta.env.VITE_ADMIN_URL ||
+  (API_BASE_URL
+    ? `${API_BASE_URL.replace(/\/api\/?$/, "")}/admin/`
+    : "/admin/");
+
 /**
  * Navigation Schema
  * Categorized for better cognitive load management on desktop.
@@ -78,7 +85,7 @@ const navGroups = [
         path: "/export",
         icon: <Database size={18} />,
       },
-      { name: "Admin Panel", path: "https://smt-project.onrender.com/admin", icon: <Settings size={18} /> },
+      { name: "Admin Panel", path: ADMIN_PANEL_URL, icon: <Settings size={18} /> },
     ],
   },
 ];
@@ -91,27 +98,51 @@ const MainLayout = () => {
   const isActive = (path) => location.pathname === path;
 
   // Shared NavItem Component for Desktop/Mobile Drawer
-  const NavLinkItem = ({ item }) => (
-    <Link
-      to={item.path}
-      onClick={() => setIsDrawerOpen(false)}
-      className={`group flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
-        isActive(item.path)
-          ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100"
-          : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
-      }`}
-    >
-      <div className="flex items-center gap-3">
-        <span
-          className={`${isActive(item.path) ? "text-white" : "text-slate-400 group-hover:text-emerald-600"}`}
+  const NavLinkItem = ({ item }) => {
+    const external = /^https?:\/\//i.test(item.path);
+    const className = `group flex items-center justify-between rounded-xl px-4 py-2.5 text-sm font-bold transition-all duration-200 ${
+      isActive(item.path)
+        ? "bg-emerald-600 text-white shadow-lg shadow-emerald-100"
+        : "text-slate-500 hover:bg-slate-100 hover:text-slate-900"
+    }`;
+    const content = (
+      <>
+        <div className="flex items-center gap-3">
+          <span
+            className={`${isActive(item.path) ? "text-white" : "text-slate-400 group-hover:text-emerald-600"}`}
+          >
+            {item.icon}
+          </span>
+          {item.name}
+        </div>
+        {isActive(item.path) && <ChevronRight size={14} />}
+      </>
+    );
+
+    if (external) {
+      return (
+        <a
+          href={item.path}
+          onClick={() => setIsDrawerOpen(false)}
+          className={className}
+          target="_blank"
+          rel="noreferrer"
         >
-          {item.icon}
-        </span>
-        {item.name}
-      </div>
-      {isActive(item.path) && <ChevronRight size={14} />}
-    </Link>
-  );
+          {content}
+        </a>
+      );
+    }
+
+    return (
+      <Link
+        to={item.path}
+        onClick={() => setIsDrawerOpen(false)}
+        className={className}
+      >
+        {content}
+      </Link>
+    );
+  };
 
   return (
     <div className="flex min-h-screen bg-slate-50">

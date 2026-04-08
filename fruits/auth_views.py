@@ -16,6 +16,7 @@ def _cookie_settings():
         "secure": settings.REFRESH_COOKIE_SECURE,
         "samesite": settings.REFRESH_COOKIE_SAMESITE,
         "path": settings.REFRESH_COOKIE_PATH,
+        "domain": settings.REFRESH_COOKIE_DOMAIN or None,
     }
 
 
@@ -71,8 +72,11 @@ class CookieTokenRefreshView(APIView):
                 )
             return response
         
-        except Exception as e:
-            return Response({"detail": str(e)}, status=status.HTTP_401_UNAUTHORIZED)
+        except TokenError:
+            return Response(
+                {"detail": "Refresh token is invalid or expired."},
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
 
 
 class LogoutView(APIView):
@@ -89,6 +93,7 @@ class LogoutView(APIView):
         response = Response(status=status.HTTP_204_NO_CONTENT)
         response.delete_cookie(
             settings.REFRESH_COOKIE_NAME,
+            domain=settings.REFRESH_COOKIE_DOMAIN or None,
             path=settings.REFRESH_COOKIE_PATH,
             samesite=settings.REFRESH_COOKIE_SAMESITE,
         )

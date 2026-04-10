@@ -81,7 +81,7 @@ class ProductAdmin(admin.ModelAdmin):
 class CustomerAdmin(admin.ModelAdmin):
     list_display = ["name", "phone", "formatted_balance", "created_at"]
     search_fields = ["name", "phone"]
-    readonly_fields = ["balance"]
+    # readonly_fields = ["balance"]
 
     @admin.display(description="Balance")
     def formatted_balance(self, obj):
@@ -93,7 +93,7 @@ class CustomerAdmin(admin.ModelAdmin):
 class SupplierAdmin(admin.ModelAdmin):
     list_display = ["name", "contact_number", "formatted_balance"]
     search_fields = ["name", "contact_number"]
-    readonly_fields = ["balance"]
+    # readonly_fields = ["balance"]
 
     @admin.display(description="Our Debt")
     def formatted_balance(self, obj):

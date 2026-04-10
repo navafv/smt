@@ -13,6 +13,7 @@ import {
   Truck,
   Users,
   Wallet,
+  Settings,
 } from "lucide-react";
 
 // Main navigation for bottom tab bar (5 items max for mobile)
@@ -23,6 +24,9 @@ export const bottomNavItems = [
   { label: "Sales", path: "/sales", icon: Receipt },
   { label: "Reports", path: "/reports", icon: BarChart3 },
 ];
+
+const ADMIN_PANEL_URL =
+  import.meta.env.VITE_ADMIN_URL;
 
 // Full navigation for drawer menu
 export const drawerNavItems = [
@@ -54,6 +58,7 @@ export const drawerNavItems = [
       { label: "Returns", path: "/returns", icon: ArchiveRestore },
       { label: "Loss Report", path: "/reports/loss", icon: AlertTriangle },
       { label: "Exports", path: "/exports", icon: FileSpreadsheet },
+      { label: "Admin Panel", path: ADMIN_PANEL_URL, icon: Settings },
     ],
   },
 ];

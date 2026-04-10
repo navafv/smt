@@ -45,7 +45,9 @@ export default function SalesHistory() {
         (sale) =>
           sale.id.toString().includes(searchTerm) ||
           (sale.customer_name &&
-            sale.customer_name.toLowerCase().includes(searchTerm.toLowerCase())),
+            sale.customer_name
+              .toLowerCase()
+              .includes(searchTerm.toLowerCase())),
       ),
     [sales, searchTerm],
   );
@@ -73,8 +75,13 @@ export default function SalesHistory() {
       const dataUrl = await toPng(receiptRef.current, {
         cacheBust: true,
         backgroundColor: "#ffffff",
-        pixelRatio: 2,
-        width: 380,
+        pixelRatio: 4,
+        canvasWidth: receiptRef.current.offsetWidth * 3,
+        canvasHeight: receiptRef.current.offsetHeight * 3,
+        style: {
+          transform: "scale(1)",
+          transformOrigin: "top left",
+        },
       });
 
       const response = await fetch(dataUrl);
@@ -143,7 +150,9 @@ export default function SalesHistory() {
               <div className="flex items-start justify-between">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">#SMT-{sale.id}</span>
+                    <span className="font-semibold text-gray-900">
+                      #SMT-{sale.id}
+                    </span>
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs ${
                         sale.payment_type === "cash"
@@ -194,7 +203,9 @@ export default function SalesHistory() {
 
           <div className="animate-slide-up flex max-h-[90vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
             <div className="flex items-center justify-between border-b border-gray-100 p-4">
-              <h2 className="font-bold text-gray-900">Receipt #{selectedSale.id}</h2>
+              <h2 className="font-bold text-gray-900">
+                Receipt #{selectedSale.id}
+              </h2>
               <button
                 onClick={() => setSelectedSale(null)}
                 className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
@@ -204,20 +215,26 @@ export default function SalesHistory() {
             </div>
 
             <div className="flex-1 overflow-y-auto p-4">
-              <div ref={receiptRef} className="print-area bg-white">
+              <div ref={receiptRef} className="print-area bg-white p-4">
                 <div className="border-b border-gray-200 pb-4 text-center">
-                  <h2 className="text-xl font-bold text-gray-900">SMT FRUITS</h2>
+                  <h2 className="text-xl font-bold text-gray-900">
+                    SMT FRUITS
+                  </h2>
                   <p className="text-xs text-gray-500">Kannur, Kerala</p>
                 </div>
 
                 <div className="space-y-2 border-b border-gray-200 py-4">
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Order ID</span>
-                    <span className="text-sm font-semibold">#{selectedSale.id}</span>
+                    <span className="text-sm font-semibold">
+                      #{selectedSale.id}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Date</span>
-                    <span className="text-sm">{formatDate(selectedSale.created_at)}</span>
+                    <span className="text-sm">
+                      {formatDate(selectedSale.created_at)}
+                    </span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600">Customer</span>

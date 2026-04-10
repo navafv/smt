@@ -200,7 +200,7 @@ export default function AddPurchase() {
               </div>
 
               {/* Quantity */}
-              <div className="col-span-2">
+              <div className="col-span-5">
                 <label className="mb-1 block text-[10px] font-bold text-slate-400 md:hidden uppercase">
                   Qty
                 </label>
@@ -217,7 +217,7 @@ export default function AddPurchase() {
               </div>
 
               {/* Cost Price */}
-              <div className="col-span-2">
+              <div className="col-span-5">
                 <label className="mb-1 block text-[10px] font-bold text-slate-400 md:hidden uppercase">
                   Cost/Unit
                 </label>

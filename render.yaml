@@ -18,7 +18,7 @@ services:
       - key: DEBUG
         value: "False"
       - key: ALLOWED_HOSTS
-        value: smt-project.onrender.com
+        value: smtapp.onrender.com
       - key: FRONTEND_APP_URL
         sync: false
       - key: CSRF_TRUSTED_ORIGINS

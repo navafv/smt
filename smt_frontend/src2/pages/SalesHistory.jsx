@@ -29,7 +29,7 @@ export default function SalesHistory() {
       const res = await api.get("/sales/");
       setSales(res.data);
     } catch {
-      toast.error("Failed to load sales");
+      toast.error("Failed to load historical ledger index");
     } finally {
       setLoading(false);
     }
@@ -59,7 +59,7 @@ export default function SalesHistory() {
     window.print();
     setTimeout(() => {
       setIsPrinting(false);
-      toast.success("Print dialog opened");
+      toast.success("System print spooler executed");
     }, 600);
   };
 
@@ -69,7 +69,7 @@ export default function SalesHistory() {
     }
 
     setIsSharing(true);
-    toast.loading("Generating receipt...", { id: "share-receipt" });
+    toast.loading("Compiling transaction canvas...", { id: "share-receipt" });
 
     try {
       const dataUrl = await toPng(receiptRef.current, {
@@ -93,184 +93,298 @@ export default function SalesHistory() {
       if (navigator.canShare && navigator.canShare({ files: [file] })) {
         await navigator.share({
           files: [file],
-          title: `Receipt #${selectedSale.id}`,
+          title: `Receipt Ledger #${selectedSale.id}`,
         });
-        toast.success("Receipt shared", { id: "share-receipt" });
+        toast.success("Receipt distributed", { id: "share-receipt" });
       } else {
         const link = document.createElement("a");
         link.download = `Receipt-${selectedSale.id}.png`;
         link.href = dataUrl;
         link.click();
-        toast.success("Receipt downloaded", { id: "share-receipt" });
+        toast.success("Receipt local payload preserved", {
+          id: "share-receipt",
+        });
       }
     } catch {
-      toast.error("Failed to generate receipt", { id: "share-receipt" });
+      toast.error("Canvas transformation engine rejected task", {
+        id: "share-receipt",
+      });
     } finally {
       setIsSharing(false);
     }
   };
 
   return (
-    <div className="space-y-4 pb-20">
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Sales History</h1>
-        <p className="text-sm text-gray-500">{sales.length} transactions</p>
+    <div className="space-y-5 pb-24 select-none animate-fade-in">
+      {/* Structural Page Header */}
+      <div className="border-b border-slate-100 pb-3">
+        <h1 className="text-xl font-black text-slate-900 tracking-tight">
+          Sales Register
+        </h1>
+        <p className="text-xs font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
+          {sales.length} Logged Transactions
+        </p>
       </div>
 
+      {/* Query Search Architecture */}
       <div className="relative">
         <Search
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          size={16}
+          className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 stroke-[2.5]"
         />
         <input
           type="text"
-          placeholder="Search by ID or customer..."
-          className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+          placeholder="Filter logs by identifier or customer name..."
+          className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-medium outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
         />
+        {searchTerm && (
+          <button
+            onClick={() => setSearchTerm("")}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 animate-fade-in"
+            aria-label="Flush active search parameters"
+          >
+            <X size={16} className="stroke-[2.5]" />
+          </button>
+        )}
       </div>
 
+      {/* Main Viewport Content Manager */}
       {loading ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 size={32} className="animate-spin text-green-600" />
+          <Loader2
+            size={28}
+            className="animate-spin text-emerald-600 stroke-[2.5]"
+          />
         </div>
       ) : filteredSales.length === 0 ? (
-        <div className="rounded-xl bg-gray-50 py-12 text-center">
-          <p className="text-gray-500">No sales found</p>
+        <div className="rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 py-12 text-center">
+          <p className="text-sm font-semibold text-slate-400">
+            No logs discovered matching query indices
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredSales.map((sale) => (
-            <button
-              key={sale.id}
-              onClick={() => setSelectedSale(sale)}
-              className="w-full rounded-xl border border-gray-100 bg-white p-4 text-left shadow-sm active:bg-gray-50"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-semibold text-gray-900">
+        <>
+          {/* DESKTOP METRIC LAYOUT */}
+          <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200">
+                <tr>
+                  <th className="px-6 py-4">Transaction Code</th>
+                  <th className="px-6 py-4">Client Record Name</th>
+                  <th className="px-6 py-4">Settlement Pipeline</th>
+                  <th className="px-6 py-4">Execution Timestamp</th>
+                  <th className="px-6 py-4 text-right">Gross Valuation</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {filteredSales.map((sale) => (
+                  <tr
+                    key={sale.id}
+                    onClick={() => setSelectedSale(sale)}
+                    className="hover:bg-slate-50/80 cursor-pointer transition-colors"
+                  >
+                    <td className="px-6 py-4 font-extrabold text-slate-900">
                       #SMT-{sale.id}
-                    </span>
-                    <span
-                      className={`rounded-full px-2 py-0.5 text-xs ${
-                        sale.payment_type === "cash"
-                          ? "bg-green-100 text-green-700"
-                          : "bg-orange-100 text-orange-700"
-                      }`}
-                    >
-                      {sale.payment_type}
-                    </span>
-                  </div>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-gray-600">
-                    <User size={12} />
-                    {sale.customer_name || "Walk-in"}
-                  </p>
-                  <p className="mt-1 text-xs text-gray-400">
-                    {formatDate(sale.created_at)}
-                  </p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-gray-900">
-                    {formatCurrencyINR(sale.total_amount)}
-                  </p>
-                  {Number(sale.discount_amount) > 0 && (
-                    <p className="text-xs text-red-500">
-                      -{formatCurrencyINR(sale.discount_amount)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <User
+                          size={13}
+                          className="text-slate-400 stroke-[2.5]"
+                        />
+                        <span className="font-semibold text-slate-800">
+                          {sale.customer_name || "Walk-in Client"}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-md px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider border ${
+                          sale.payment_type === "cash"
+                            ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                            : "bg-blue-50 border-blue-100 text-blue-700"
+                        }`}
+                      >
+                        {sale.payment_type === "cash" ? (
+                          <Banknote size={10} className="stroke-[2.5]" />
+                        ) : (
+                          <CreditCard size={10} className="stroke-[2.5]" />
+                        )}
+                        {sale.payment_type}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-xs font-semibold text-slate-400">
+                      {formatDate(sale.created_at)}
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <div className="space-y-0.5">
+                        <p className="font-black text-slate-900">
+                          {formatCurrencyINR(sale.total_amount)}
+                        </p>
+                        {Number(sale.discount_amount) > 0 && (
+                          <p className="text-[10px] font-bold text-rose-500">
+                            -{formatCurrencyINR(sale.discount_amount)} Deducted
+                          </p>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* MOBILE INTERACTIVE CARDS */}
+          <div className="space-y-3 block md:hidden">
+            {filteredSales.map((sale) => (
+              <button
+                key={sale.id}
+                onClick={() => setSelectedSale(sale)}
+                className="w-full rounded-xl border border-slate-200/80 bg-white p-4 text-left shadow-xs transition-all active:bg-slate-50"
+              >
+                <div className="flex items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-extrabold text-slate-900 text-sm">
+                        #SMT-{sale.id}
+                      </span>
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider border ${
+                          sale.payment_type === "cash"
+                            ? "bg-emerald-50 border-emerald-100 text-emerald-600"
+                            : "bg-blue-50 border-blue-100 text-blue-600"
+                        }`}
+                      >
+                        {sale.payment_type}
+                      </span>
+                    </div>
+                    <p className="flex items-center gap-1 text-xs font-semibold text-slate-600">
+                      <User size={12} className="text-slate-400 stroke-[2.5]" />
+                      {sale.customer_name || "Walk-in Client"}
                     </p>
-                  )}
+                    <p className="text-[11px] font-medium text-slate-400">
+                      {formatDate(sale.created_at)}
+                    </p>
+                  </div>
+
+                  <div className="text-right space-y-0.5">
+                    <p className="text-base font-black text-slate-900">
+                      {formatCurrencyINR(sale.total_amount)}
+                    </p>
+                    {Number(sale.discount_amount) > 0 && (
+                      <p className="text-[10px] font-black text-rose-500">
+                        -{formatCurrencyINR(sale.discount_amount)}
+                      </p>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </button>
-          ))}
-        </div>
+              </button>
+            ))}
+          </div>
+        </>
       )}
 
+      {/* Global Ledger Details Modal Backdrop */}
       {selectedSale && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-          <style>
-            {`
-              @media print {
-                body * { visibility: hidden; }
-                .print-area { visibility: visible !important; position: absolute; left: 0; top: 0; width: 100%; }
-                .print-area * { visibility: visible !important; }
-                .no-print { display: none !important; }
-                @page { margin: 0; }
-              }
-            `}
-          </style>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-4 backdrop-blur-xs sm:items-center">
+          {/* Print Isolation Architecture Stylesheet injection */}
+          <style
+            dangerouslySetInnerHTML={{
+              __html: `
+            @media print {
+              body * { visibility: hidden; }
+              .print-area { visibility: visible !important; position: absolute; left: 0; top: 0; width: 100%; }
+              .print-area * { visibility: visible !important; }
+              .no-print { display: none !important; }
+              @page { margin: 0; }
+            }
+          `,
+            }}
+          />
 
-          <div className="animate-slide-up flex max-h-[90vh] w-full max-w-md flex-col rounded-t-2xl bg-white sm:rounded-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 p-4">
-              <h2 className="font-bold text-gray-900">
-                Receipt #{selectedSale.id}
+          <div className="animate-slide-up flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl border border-slate-200">
+            {/* Modal Header Actions */}
+            <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 bg-slate-50 rounded-t-2xl">
+              <h2 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">
+                Receipt Identity Voucher
               </h2>
               <button
                 onClick={() => setSelectedSale(null)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
+                className="p-1 rounded-lg hover:bg-slate-200 text-slate-400 hover:text-slate-600 transition-colors"
+                aria-label="Terminate detailed overview overlay"
               >
-                <X size={18} />
+                <X size={16} className="stroke-[2.5]" />
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto p-4">
-              <div ref={receiptRef} className="print-area bg-white p-4">
-                <div className="border-b border-gray-200 pb-4 text-center">
-                  <h2 className="text-xl font-bold text-gray-900">
+            {/* Document Print Area Enclosure */}
+            <div className="flex-1 overflow-y-auto p-5">
+              <div
+                ref={receiptRef}
+                className="print-area bg-white border border-slate-100 rounded-xl p-5 shadow-xs"
+              >
+                <div className="border-b border-slate-200 pb-4 text-center">
+                  <h2 className="text-lg font-black text-slate-900 tracking-tight">
                     SMT FRUITS
                   </h2>
-                  <p className="text-xs text-gray-500">Kannur, Kerala</p>
+                  <p className="text-[11px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">
+                    Kannur, Kerala
+                  </p>
                 </div>
 
-                <div className="space-y-2 border-b border-gray-200 py-4">
+                <div className="space-y-2 border-b border-slate-100 py-4 font-semibold text-xs text-slate-600">
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Order ID</span>
-                    <span className="text-sm font-semibold">
+                    <span>Voucher Index Reference</span>
+                    <span className="font-extrabold text-slate-900">
                       #{selectedSale.id}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Date</span>
-                    <span className="text-sm">
+                    <span>Committed Date</span>
+                    <span className="text-slate-800 font-bold">
                       {formatDate(selectedSale.created_at)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600">Customer</span>
-                    <span className="text-sm">
-                      {selectedSale.customer_name || "Walk-in"}
+                    <span>Identified Receiver</span>
+                    <span className="text-slate-800 font-bold">
+                      {selectedSale.customer_name || "Walk-in Buyer"}
                     </span>
                   </div>
                 </div>
 
-                <div className="border-b border-gray-200 py-4">
-                  <div className="mb-2 flex justify-between text-xs font-semibold text-gray-500">
-                    <span>Item</span>
-                    <span>Total</span>
+                <div className="border-b border-slate-100 py-4">
+                  <div className="mb-2 flex justify-between text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    <span>Itemized Breakdown</span>
+                    <span>Computed Valuation</span>
                   </div>
                   {selectedSale.items?.map((item) => (
                     <div
                       key={item.product}
-                      className="mb-2 flex justify-between text-sm"
+                      className="mb-3 flex justify-between text-xs items-start"
                     >
                       <div>
-                        <p className="font-medium">{item.product_name}</p>
-                        <p className="text-xs text-gray-500">
-                          {item.quantity} x {formatCurrencyINR(item.unit_price)}
+                        <p className="font-extrabold text-slate-800">
+                          {item.product_name}
+                        </p>
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5">
+                          {item.quantity} units &times;{" "}
+                          {formatCurrencyINR(item.unit_price)}
                         </p>
                       </div>
-                      <span className="font-medium">
+                      <span className="font-bold text-slate-900 mt-0.5">
                         {formatCurrencyINR(item.subtotal)}
                       </span>
                     </div>
                   ))}
                 </div>
 
-                <div className="space-y-2 py-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-gray-600">Subtotal</span>
-                    <span className="font-medium">
+                <div className="space-y-2 pt-4 text-xs font-semibold text-slate-600">
+                  <div className="flex justify-between">
+                    <span>Accumulated Subtotal</span>
+                    <span className="font-bold text-slate-900">
                       {formatCurrencyINR(
                         selectedSale.items?.reduce(
                           (sum, item) => sum + Number(item.subtotal),
@@ -280,54 +394,57 @@ export default function SalesHistory() {
                     </span>
                   </div>
                   {Number(selectedSale.discount_amount) > 0 && (
-                    <div className="flex justify-between text-sm">
-                      <span className="text-gray-600">Discount</span>
-                      <span className="text-red-600">
+                    <div className="flex justify-between text-xs">
+                      <span>Applied Reduction Plan</span>
+                      <span className="font-bold text-rose-600">
                         -{formatCurrencyINR(selectedSale.discount_amount)}
                       </span>
                     </div>
                   )}
-                  <div className="flex justify-between border-t border-gray-200 pt-2 text-lg font-bold">
-                    <span>Total</span>
-                    <span>{formatCurrencyINR(selectedSale.total_amount)}</span>
+                  <div className="flex justify-between border-t border-slate-200 pt-3 text-base font-black text-slate-900">
+                    <span>Gross Total Outlay</span>
+                    <span className="text-emerald-600">
+                      {formatCurrencyINR(selectedSale.total_amount)}
+                    </span>
                   </div>
                 </div>
 
-                <div className="border-t border-gray-200 pt-4 text-center">
-                  <p className="text-xs text-gray-500">
-                    Payment: {selectedSale.payment_type}
+                <div className="border-t border-slate-100 mt-4 pt-4 text-center space-y-1">
+                  <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Settled Protocol: {selectedSale.payment_type}
                   </p>
-                  <p className="mt-2 text-xs text-gray-400">
-                    Thank you for your purchase!
+                  <p className="text-[11px] font-medium text-slate-300 italic">
+                    Authentication verified successfully
                   </p>
                 </div>
               </div>
             </div>
 
-            <div className="flex gap-3 border-t border-gray-100 p-4">
+            {/* Document Distribution Node Action Area */}
+            <div className="flex gap-3 border-t border-slate-100 bg-slate-50 p-4 rounded-b-2xl no-print">
               <button
                 onClick={handlePrint}
                 disabled={isPrinting}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 py-3 font-medium text-white active:scale-98"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-slate-950 hover:bg-slate-800 py-3 text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-50 shadow-sm"
               >
                 {isPrinting ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 size={14} className="animate-spin stroke-[2.5]" />
                 ) : (
-                  <Printer size={16} />
+                  <Printer size={14} className="stroke-[2.5]" />
                 )}
-                Print
+                <span>Print Bill</span>
               </button>
               <button
                 onClick={handleShare}
                 disabled={isSharing}
-                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-blue-600 py-3 font-medium text-white active:scale-98"
+                className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 py-3 text-xs font-bold text-white transition-all active:scale-95 disabled:opacity-50 shadow-sm"
               >
                 {isSharing ? (
-                  <Loader2 size={16} className="animate-spin" />
+                  <Loader2 size={14} className="animate-spin stroke-[2.5]" />
                 ) : (
-                  <Share2 size={16} />
+                  <Share2 size={14} className="stroke-[2.5]" />
                 )}
-                Share
+                <span>Share Ledger</span>
               </button>
             </div>
           </div>

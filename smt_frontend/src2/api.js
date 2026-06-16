@@ -1,8 +1,8 @@
 import axios from "axios";
 
 /**
- * 1. CONFIGURATION
- * We use Vite's environment variables to keep our API URLs flexible.
+ * 1. NETWORK ENVIRONMENT CONFIGURATION
+ * Determines root destination coordinates from active system layer injection variables.
  */
 const BASE_URL =
   import.meta.env.VITE_API_URL ||
@@ -12,7 +12,7 @@ const ABSOLUTE_API_URL = /^https?:\/\//i.test(BASE_URL);
 
 const api = axios.create({
   baseURL: BASE_URL,
-  withCredentials: true, // MANDATORY: This allows the browser to send the HttpOnly refresh cookie
+  withCredentials: true, // Crucial for passing HttpOnly verification cookies
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
@@ -20,9 +20,9 @@ const api = axios.create({
 });
 
 /**
- * 2. IN-MEMORY TOKEN STORAGE (Senior Security Move)
- * We do NOT store the access_token in localStorage. This prevents it from being
- * stolen by malicious scripts (XSS). It lives only in JS memory while the tab is open.
+ * 2. IN-MEMORY TOKEN STORAGE (Defensive Security Pattern)
+ * Isolates transient authorization tokens inside Javascript execution runtime space
+ * to block cross-site scripting (XSS) extraction attempts.
  */
 let accessToken = null;
 let isRefreshing = false;
@@ -35,6 +35,10 @@ export const setAccessToken = (token) => {
 
 export const getAccessToken = () => accessToken;
 
+/**
+ * Wakes up container environments that scale down automatically due to inactivity.
+ * Runs early in the app initialization cycle to prevent user-facing interface lag.
+ */
 export function warmUpBackend() {
   if (!WARMUP_ENABLED || !ABSOLUTE_API_URL) {
     return Promise.resolve();
@@ -44,7 +48,7 @@ export function warmUpBackend() {
     warmupPromise = axios
       .get(`${BASE_URL}/health/`, {
         withCredentials: false,
-        timeout: 70_000,
+        timeout: 70000,
       })
       .catch(() => null);
   }
@@ -53,8 +57,9 @@ export function warmUpBackend() {
 }
 
 /**
- * 3. REFRESH QUEUE MANAGEMENT
- * If 5 requests fail at the same time, this ensures we only call /refresh/ once.
+ * 3. ASYNCHRONOUS TRANSACTION QUEUE MANAGEMENT
+ * Resolves or rejects multiple pending resource network calls
+ * once an active background refresh cycle completes.
  */
 const processQueue = (error, token = null) => {
   failedQueue.forEach((pendingRequest) => {
@@ -68,15 +73,13 @@ const processQueue = (error, token = null) => {
 };
 
 /**
- * 4. SILENT REFRESH LOGIC
- * Re-authenticates the session using the HttpOnly refresh cookie.
- * If this fails, the error bubbles up to the interceptor or caller
- * to trigger the logout flow.
+ * 4. SILENT REFRESH PROCESSING
+ * Authenticates the current web session using securely stored HttpOnly cookie layers.
  */
 export async function refreshAccessToken() {
   const res = await axios.post(
     `${BASE_URL}/auth/refresh/`,
-    {}, // Empty body; token is secured in the cookie
+    {}, // Body payload is empty because the cookie contains the token
     {
       withCredentials: true,
       headers: { Accept: "application/json" },
@@ -84,20 +87,23 @@ export async function refreshAccessToken() {
   );
 
   const { access } = res.data;
+  if (!access) {
+    throw new Error(
+      "Invalid token packet format payload structured structure.",
+    );
+  }
 
-  // Update the in-memory token for the SMT Fruits session
   setAccessToken(access);
-
   return access;
 }
 
 /**
- * 5. REQUEST INTERCEPTOR
- * Injects the In-Memory Access Token into the header of every outgoing request.
+ * 5. REQUEST PIPELINE INTERCEPTOR
+ * Injects volatile bearer credentials into outgoing secure endpoints.
  */
 api.interceptors.request.use(
   (config) => {
-    if (accessToken) {
+    if (accessToken && config.headers) {
       config.headers.Authorization = `Bearer ${accessToken}`;
     }
     return config;
@@ -106,20 +112,25 @@ api.interceptors.request.use(
 );
 
 /**
- * 6. RESPONSE INTERCEPTOR
- * Automatically detects 401 (Expired) errors and triggers the Silent Refresh.
+ * 6. RESPONSE PIPELINE INTERCEPTOR
+ * Intercepts 401 Unauthorized errors to automatically initiate background session renewals
+ * without interrupting the user's active workflow.
  */
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+    if (!originalRequest) return Promise.reject(error);
 
-    // Detect 401 errors, ensuring we don't loop on the /auth/ endpoints
-    if (
-      error.response?.status === 401 &&
-      !originalRequest?._retry &&
-      !originalRequest?.url?.includes("/auth/")
-    ) {
+    // Filter validation conditions to prevent recursive authentication requests
+    const isUnauthorized = error.response?.status === 401;
+    const isRetryAlreadyTracked = originalRequest._retry;
+    const isAuthEndpoint = originalRequest.url
+      ? originalRequest.url.includes("/auth/")
+      : false;
+
+    if (isUnauthorized && !isRetryAlreadyTracked && !isAuthEndpoint) {
+      // If a token refresh is already underway, queue this request to retry when it finishes
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
           failedQueue.push({ resolve, reject });
@@ -135,9 +146,9 @@ api.interceptors.response.use(
       isRefreshing = true;
 
       try {
-        const token = await refreshAccessToken();
-        processQueue(null, token);
-        originalRequest.headers.Authorization = `Bearer ${token}`;
+        const freshToken = await refreshAccessToken();
+        processQueue(null, freshToken);
+        originalRequest.headers.Authorization = `Bearer ${freshToken}`;
         return api(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError, null);
@@ -148,8 +159,8 @@ api.interceptors.response.use(
       }
     }
 
-    // 403 Forbidden usually means a malformed token or permission issue
-    if (error.response?.status === 403) {
+    // A 403 Forbidden status indicates either a malformed token profile or insufficient privileges
+    if (error.response?.status === 403 && !isAuthEndpoint) {
       handleSessionExpired();
     }
 
@@ -158,20 +169,23 @@ api.interceptors.response.use(
 );
 
 /**
- * 7. GLOBAL LOGOUT / SESSION CLEANUP
- * Clears memory and redirects the user to the login screen.
+ * 7. SESSION TIMEOUT CLEANUP UTILITY
+ * Clears volatile state contexts and handles structured redirection back to the login gateway.
  */
 export function handleSessionExpired() {
   setAccessToken(null);
 
-  // Bridge to React state if AuthContext has registered a global logout function
-  if (typeof window.__SMT_LOGOUT__ === "function") {
+  // Trigger context synchronization if AuthContext is mounted and listening
+  if (
+    typeof window !== "undefined" &&
+    typeof window.__SMT_LOGOUT__ === "function"
+  ) {
     window.__SMT_LOGOUT__();
     return;
   }
 
-  if (window.location.pathname !== "/login") {
-    window.location.href = "/login?session=expired";
+  if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+    window.location.href = "/login?reason=expired";
   }
 }
 

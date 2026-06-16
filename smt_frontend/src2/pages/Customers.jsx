@@ -3,7 +3,6 @@ import {
   ArrowRight,
   Loader2,
   MapPin,
-  Phone,
   Search,
   User,
   UserPlus,
@@ -21,7 +20,6 @@ export default function Customers() {
   const [showPayModal, setShowPayModal] = useState(null);
   const [newCustomer, setNewCustomer] = useState({
     name: "",
-    phone: "",
     address: "",
   });
   const [payAmount, setPayAmount] = useState("");
@@ -33,7 +31,7 @@ export default function Customers() {
       const res = await api.get("/customers/");
       setCustomers(res.data);
     } catch {
-      toast.error("Failed to load customers");
+      toast.error("Failed to sync customer registry database");
     } finally {
       setLoading(false);
     }
@@ -45,10 +43,8 @@ export default function Customers() {
 
   const filteredCustomers = useMemo(
     () =>
-      customers.filter(
-        (customer) =>
-          customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          customer.phone.includes(searchTerm),
+      customers.filter((customer) =>
+        customer.name.toLowerCase().includes(searchTerm.toLowerCase()),
       ),
     [customers, searchTerm],
   );
@@ -59,15 +55,13 @@ export default function Customers() {
 
     try {
       await api.post("/customers/", newCustomer);
-      toast.success(`${newCustomer.name} added`);
+      toast.success(`Profile generated successfully for ${newCustomer.name}`);
       setShowAddModal(false);
-      setNewCustomer({ name: "", phone: "", address: "" });
+      setNewCustomer({ name: "", address: "" });
       fetchCustomers();
     } catch (error) {
       toast.error(
-        error.response?.data?.phone
-          ? "Phone number already exists"
-          : "Failed to add customer",
+        "System integration failure while appending customer profile",
       );
     } finally {
       setIsSubmitting(false);
@@ -77,7 +71,7 @@ export default function Customers() {
   const handlePayment = async (event) => {
     event.preventDefault();
     if (!payAmount || Number(payAmount) <= 0) {
-      toast.error("Enter valid amount");
+      toast.error("Invalid transaction: Allocation quantity must be non-zero");
       return;
     }
 
@@ -89,125 +83,204 @@ export default function Customers() {
         amount: payAmount,
       });
       toast.success(
-        `Received ${formatCurrencyINR(payAmount)} from ${showPayModal.name}`,
+        `Settled ${formatCurrencyINR(payAmount)} to account of ${showPayModal.name}`,
       );
       setShowPayModal(null);
       setPayAmount("");
       fetchCustomers();
     } catch {
-      toast.error("Payment failed");
+      toast.error("Financial ledger ledger updates rejected by processor");
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="space-y-4 pb-20">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6 pb-24 select-none animate-fade-in">
+      {/* Structural Module Header Section */}
+      <div className="flex items-center justify-between border-b border-slate-100 pb-3">
         <div>
-          <h1 className="text-xl font-bold text-gray-900">Customers</h1>
-          <p className="text-sm text-gray-500">{customers.length} contacts</p>
+          <h1 className="text-xl font-black text-slate-900 tracking-tight">
+            Customer Accounts
+          </h1>
+          <p className="text-[11px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
+            {customers.length} Verified Relations & Receivables
+          </p>
         </div>
         <button
           onClick={() => setShowAddModal(true)}
-          className="flex h-11 items-center gap-2 rounded-xl bg-green-600 px-4 font-medium text-white active:scale-98"
+          className="flex h-11 items-center gap-2 rounded-xl bg-slate-950 hover:bg-slate-850 px-4 text-xs font-bold text-white transition-all active:scale-95 shadow-sm"
         >
-          <UserPlus size={18} />
-          Add
+          <UserPlus size={15} className="stroke-[2.5]" />
+          <span>New Customer</span>
         </button>
       </div>
 
+      {/* Dynamic Filter / Pipeline Query Element */}
       <div className="relative">
         <Search
-          size={18}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+          size={16}
+          className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 stroke-[2.5]"
         />
         <input
           type="text"
-          placeholder="Search by name or phone..."
-          className="w-full rounded-xl border border-gray-200 py-3 pl-10 pr-4 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+          placeholder="Query index parameters via name string or identifier digits..."
+          className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 bg-white"
           value={searchTerm}
           onChange={(event) => setSearchTerm(event.target.value)}
         />
       </div>
 
+      {/* Core Component State Pipeline Routing */}
       {loading ? (
         <div className="flex h-64 items-center justify-center">
-          <Loader2 size={32} className="animate-spin text-green-600" />
+          <Loader2
+            size={28}
+            className="animate-spin text-emerald-600 stroke-[2.5]"
+          />
         </div>
       ) : filteredCustomers.length === 0 ? (
-        <div className="rounded-xl bg-gray-50 py-12 text-center">
-          <User size={40} className="mx-auto text-gray-300" />
-          <p className="mt-2 text-gray-500">No customers found</p>
+        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-16 text-center">
+          <User size={36} className="mx-auto text-slate-300 stroke-[1.5]" />
+          <p className="mt-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
+            No matching indexes found
+          </p>
         </div>
       ) : (
-        <div className="space-y-3">
-          {filteredCustomers.map((customer) => (
-            <div
-              key={customer.id}
-              className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <h3 className="font-semibold text-gray-900">{customer.name}</h3>
-                  <p className="mt-1 flex items-center gap-1 text-sm text-gray-500">
-                    <Phone size={14} /> {customer.phone}
-                  </p>
-                  {customer.address && (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-gray-400">
-                      <MapPin size={12} /> {customer.address}
-                    </p>
-                  )}
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-gray-500">Balance</p>
-                  <p
-                    className={`text-xl font-bold ${
-                      Number(customer.balance) > 0
-                        ? "text-red-600"
-                        : "text-green-600"
-                    }`}
-                  >
-                    {formatCurrencyINR(customer.balance)}
-                  </p>
-                </div>
-              </div>
+        <div className="space-y-4">
+          {/* DESKTOP MATRIX LEDGER HOUSING */}
+          <div className="hidden md:block overflow-hidden bg-white rounded-2xl shadow-xs border border-slate-200/80">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                <tr>
+                  <th className="px-5 py-3.5">Client Profile Reference</th>
+                  <th className="px-5 py-3.5">Registered Location</th>
+                  <th className="px-5 py-3.5 text-right">
+                    Outstanding Account Status
+                  </th>
+                  <th className="px-5 py-3.5 text-center">
+                    Operational Actions
+                  </th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-600 text-xs">
+                {filteredCustomers.map((customer) => {
+                  const hasDebit = Number(customer.balance) > 0;
+                  return (
+                    <tr
+                      key={customer.id}
+                      className="hover:bg-slate-50/50 transition-colors"
+                    >
+                      <td className="px-5 py-4 font-extrabold text-slate-900 text-sm">
+                        {customer.name}
+                      </td>
+                      <td className="px-5 py-4 text-slate-400 max-w-xs truncate">
+                        {customer.address || (
+                          <span className="italic opacity-40">Not defined</span>
+                        )}
+                      </td>
+                      <td
+                        className={`px-5 py-4 text-right font-black text-sm ${hasDebit ? "text-rose-600" : "text-emerald-600"}`}
+                      >
+                        {formatCurrencyINR(customer.balance)}
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <button
+                          onClick={() => setShowPayModal(customer)}
+                          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-98 text-[11px]"
+                        >
+                          <span>Process Remittance</span>
+                          <ArrowRight size={12} className="stroke-[2.5]" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
 
-              <button
-                onClick={() => setShowPayModal(customer)}
-                className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-gray-50 py-2 text-sm font-medium text-gray-700 active:bg-gray-100"
-              >
-                Receive Payment
-                <ArrowRight size={14} />
-              </button>
-            </div>
-          ))}
+          {/* MOBILE STREAM SUMMARY CARDS */}
+          <div className="space-y-3 block md:hidden">
+            {filteredCustomers.map((customer) => {
+              const hasDebit = Number(customer.balance) > 0;
+              return (
+                <div
+                  key={customer.id}
+                  className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs space-y-3"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <h3 className="font-extrabold text-slate-900 text-sm truncate">
+                        {customer.name}
+                      </h3>
+                      {customer.address && (
+                        <p className="flex items-center gap-1 text-[11px] font-medium text-slate-400 truncate pt-0.5">
+                          <MapPin
+                            size={11}
+                            className="stroke-[2.5] flex-shrink-0"
+                          />{" "}
+                          {customer.address}
+                        </p>
+                      )}
+                    </div>
+                    <div className="text-right pl-3">
+                      <p className="text-[9px] font-black uppercase text-slate-400 tracking-wider">
+                        Balance Status
+                      </p>
+                      <p
+                        className={`text-base font-black tracking-tight mt-0.5 ${hasDebit ? "text-rose-600" : "text-emerald-600"}`}
+                      >
+                        {formatCurrencyINR(customer.balance)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setShowPayModal(customer)}
+                    className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 py-2.5 text-xs font-bold text-slate-700 transition-all active:bg-slate-100"
+                  >
+                    <span>Receive Payment</span>
+                    <ArrowRight size={13} className="stroke-[2.5]" />
+                  </button>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
+      {/* CORE FRAME LAYOUT COMPONENT: PROFILE CREATION DIALOG */}
       {showAddModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-          <div className="animate-slide-up w-full max-w-md rounded-t-2xl bg-white sm:rounded-2xl">
-            <div className="flex items-center justify-between border-b border-gray-100 p-4">
-              <h2 className="font-bold text-gray-900">Add Customer</h2>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 backdrop-blur-xs sm:items-center p-0 sm:p-4">
+          <div className="w-full max-w-md rounded-t-2xl sm:rounded-2xl bg-white shadow-xl border border-slate-100 transform animate-slide-up overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-100 p-4 bg-slate-50/40">
+              <div>
+                <h2 className="text-sm font-black text-slate-900 uppercase tracking-wider">
+                  Initialize Client Account
+                </h2>
+                <p className="text-[10px] font-semibold text-slate-400 mt-0.5">
+                  Register new profile constraints into global indexes.
+                </p>
+              </div>
               <button
                 onClick={() => setShowAddModal(false)}
-                className="flex h-10 w-10 items-center justify-center rounded-xl bg-gray-100"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-400 hover:text-slate-600 transition-colors"
               >
-                <X size={18} />
+                <X size={16} className="stroke-[2.5]" />
               </button>
             </div>
 
-            <form onSubmit={handleAddCustomer} className="space-y-4 p-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Full Name
+            <form onSubmit={handleAddCustomer} className="space-y-4 p-5">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  Full Name / Entity Label
                 </label>
                 <input
                   type="text"
                   required
-                  placeholder="Customer name"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                  placeholder="e.g., Ramesh Kumar"
+                  className="w-full rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 bg-slate-50/40"
                   value={newCustomer.name}
                   onChange={(event) =>
                     setNewCustomer({ ...newCustomer, name: event.target.value })
@@ -215,54 +288,41 @@ export default function Customers() {
                 />
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  required
-                  placeholder="10-digit mobile"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-                  value={newCustomer.phone}
-                  onChange={(event) =>
-                    setNewCustomer({ ...newCustomer, phone: event.target.value })
-                  }
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Address (Optional)
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+                  Physical Logistics Location (Optional)
                 </label>
                 <textarea
-                  placeholder="Customer address"
+                  placeholder="Drop-off point or street delivery notes..."
                   rows={2}
-                  className="w-full resize-none rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
+                  className="w-full resize-none rounded-xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 bg-slate-50/40"
                   value={newCustomer.address}
                   onChange={(event) =>
-                    setNewCustomer({ ...newCustomer, address: event.target.value })
+                    setNewCustomer({
+                      ...newCustomer,
+                      address: event.target.value,
+                    })
                   }
                 />
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="flex gap-3 pt-3 border-t border-slate-100/80">
                 <button
                   type="button"
                   onClick={() => setShowAddModal(false)}
-                  className="flex-1 rounded-xl border border-gray-200 py-3 font-medium text-gray-600 active:bg-gray-50"
+                  className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-bold text-slate-600 transition-all active:bg-slate-50"
                 >
-                  Cancel
+                  Abort Action
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex flex-1 items-center justify-center rounded-xl bg-green-600 py-3 font-medium text-white active:scale-98 disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center rounded-xl bg-slate-950 hover:bg-slate-850 py-3 text-xs font-bold text-white transition-all active:scale-95 shadow-sm disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <Loader2 size={18} className="animate-spin" />
+                    <Loader2 size={15} className="animate-spin stroke-[2.5]" />
                   ) : (
-                    "Save"
+                    "Save Registry Profile"
                   )}
                 </button>
               </div>
@@ -271,48 +331,58 @@ export default function Customers() {
         </div>
       )}
 
+      {/* CORE FRAME LAYOUT COMPONENT: RECEIVABLES SETTLEMENT DIALOG */}
       {showPayModal && (
-        <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/50 sm:items-center">
-          <div className="animate-slide-up w-full max-w-md rounded-t-2xl bg-white sm:rounded-2xl">
-            <div className="border-b border-gray-100 p-4 text-center">
-              <h2 className="font-bold text-gray-900">Receive Payment</h2>
-              <p className="mt-1 text-sm text-gray-500">{showPayModal.name}</p>
+        <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 backdrop-blur-xs sm:items-center p-0 sm:p-4">
+          <div className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-xl border border-slate-100 transform animate-slide-up overflow-hidden">
+            <div className="border-b border-slate-100 p-5 text-center bg-slate-50/40">
+              <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                Record Account Remittance
+              </h2>
+              <p className="mt-1 text-sm font-extrabold text-slate-500">
+                {showPayModal.name}
+              </p>
             </div>
 
-            <form onSubmit={handlePayment} className="space-y-4 p-4">
-              <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">
-                  Amount (Rs)
+            <form onSubmit={handlePayment} className="space-y-4 p-5">
+              <div className="space-y-1.5">
+                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block text-center">
+                  Calculated Amount Settled (INR)
                 </label>
-                <input
-                  type="number"
-                  autoFocus
-                  required
-                  step="0.01"
-                  placeholder="0.00"
-                  className="w-full rounded-xl border border-gray-200 px-4 py-3 text-lg outline-none focus:border-green-500 focus:ring-2 focus:ring-green-100"
-                  value={payAmount}
-                  onChange={(event) => setPayAmount(event.target.value)}
-                />
+                <div className="relative">
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400 text-lg">
+                    ₹
+                  </span>
+                  <input
+                    type="number"
+                    autoFocus
+                    required
+                    step="0.01"
+                    placeholder="0.00"
+                    className="w-full rounded-xl border border-slate-200 pl-8 pr-4 py-3.5 text-center text-xl font-black text-slate-900 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 bg-slate-50/20 tracking-tight"
+                    value={payAmount}
+                    onChange={(event) => setPayAmount(event.target.value)}
+                  />
+                </div>
               </div>
 
-              <div className="flex gap-3">
+              <div className="flex gap-3 pt-2">
                 <button
                   type="button"
                   onClick={() => setShowPayModal(null)}
-                  className="flex-1 rounded-xl border border-gray-200 py-3 font-medium text-gray-600 active:bg-gray-50"
+                  className="flex-1 rounded-xl border border-slate-200 py-3 text-xs font-bold text-slate-600 transition-all active:bg-slate-50"
                 >
-                  Cancel
+                  Discard
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex flex-1 items-center justify-center rounded-xl bg-green-600 py-3 font-medium text-white active:scale-98 disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 text-xs font-bold text-white transition-all active:scale-95 shadow-sm disabled:opacity-50"
                 >
                   {isSubmitting ? (
-                    <Loader2 size={18} className="animate-spin" />
+                    <Loader2 size={15} className="animate-spin stroke-[2.5]" />
                   ) : (
-                    "Confirm"
+                    "Authorize Adjustment"
                   )}
                 </button>
               </div>

@@ -25,11 +25,12 @@ const Reports = lazy(() => import("./pages/Reports"));
 const ExportCenter = lazy(() => import("./pages/ExportCenter"));
 const Login = lazy(() => import("./Login"));
 
-// Scroll to top on route change
+// Scroll to top instantly on route change to keep store workflow speedy
 function ScrollToTop() {
   const { pathname } = useLocation();
   useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Replaced 'smooth' with 'auto' for zero visual lag when changing screens
+    window.scrollTo({ top: 0, behavior: "auto" });
   }, [pathname]);
   return null;
 }
@@ -46,6 +47,7 @@ function App({ onMount }) {
   return (
     <>
       <ScrollToTop />
+      {/* Fallback wrapped to prevent sudden structural page pops */}
       <Suspense fallback={<LoadingScreen />}>
         <Routes>
           {/* Public Routes */}
@@ -100,14 +102,14 @@ function App({ onMount }) {
             </Route>
           </Route>
 
-          {/* 404 Page - Mobile Friendly */}
+          {/* 404 Page - Polished System Theme Aesthetics */}
           <Route
             path="*"
             element={
-              <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-5">
-                <div className="w-24 h-24 bg-red-50 rounded-full flex items-center justify-center mb-6">
+              <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6 text-center">
+                <div className="w-20 h-20 bg-rose-50 rounded-2xl flex items-center justify-center mb-6 border border-rose-100 shadow-sm">
                   <svg
-                    className="w-12 h-12 text-red-500"
+                    className="w-10 h-10 text-rose-500"
                     fill="none"
                     stroke="currentColor"
                     viewBox="0 0 24 24"
@@ -120,13 +122,21 @@ function App({ onMount }) {
                     />
                   </svg>
                 </div>
-                <h1 className="text-4xl font-bold text-gray-900 mb-2">404</h1>
-                <p className="text-gray-600 text-center mb-8">Page not found</p>
+                <h1 className="text-4xl font-extrabold text-slate-900 tracking-tight mb-2">
+                  404
+                </h1>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">
+                  Page Not Found
+                </h2>
+                <p className="text-slate-500 max-w-sm mb-8 text-sm leading-relaxed">
+                  The screen or feature you are trying to access doesn't exist
+                  or may have shifted locations.
+                </p>
                 <Link
                   to={user ? "/dashboard" : "/login"}
-                  className="bg-green-600 text-white px-8 py-3 rounded-xl font-semibold active:scale-95 transition-transform inline-block"
+                  className="bg-emerald-600 hover:bg-emerald-700 text-white px-6 py-3 rounded-xl font-semibold transition-all shadow-md shadow-emerald-600/10 active:scale-[0.98]"
                 >
-                  Go Home
+                  Return to Control Panel
                 </Link>
               </div>
             }

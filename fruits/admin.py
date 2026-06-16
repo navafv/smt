@@ -79,8 +79,8 @@ class ProductAdmin(admin.ModelAdmin):
 
 @admin.register(Customer)
 class CustomerAdmin(admin.ModelAdmin):
-    list_display = ["name", "phone", "formatted_balance", "created_at"]
-    search_fields = ["name", "phone"]
+    list_display = ["name", "formatted_balance", "created_at"]
+    search_fields = ["name"]
     # readonly_fields = ["balance"]
 
     @admin.display(description="Balance")

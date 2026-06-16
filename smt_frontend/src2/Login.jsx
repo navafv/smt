@@ -16,17 +16,19 @@ export default function Login() {
 
   const from = location.state?.from?.pathname || "/dashboard";
   const queryParams = new URLSearchParams(location.search);
-  const isSessionExpired = queryParams.get("session") === "expired";
+  const isSessionExpired = queryParams.get("reason") === "expired";
 
-  // Redirect if already logged in
+  // Redirect if already authenticated
   useEffect(() => {
     if (user) navigate(from, { replace: true });
   }, [user, navigate, from]);
 
-  // Show session expired message
+  // Show explicit session expired notifications cleanly via unique toast identification matching
   useEffect(() => {
     if (isSessionExpired) {
-      toast.error("Session expired. Please login again");
+      toast.error("Session expired for security. Please log back in.", {
+        id: "session-expired-toast",
+      });
     }
   }, [isSessionExpired]);
 
@@ -52,93 +54,100 @@ export default function Login() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-5">
+    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 select-none">
       <div className="w-full max-w-md">
-        {/* Logo & Brand */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 bg-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg">
+        {/* Logo & Brand Architecture */}
+        <div className="text-center mb-8 animate-fade-in">
+          <div className="w-20 h-20 bg-emerald-600 rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-600/10 border border-emerald-500/10">
             <Store size={36} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">SMT Fruits</h1>
-          <p className="text-sm text-gray-500 mt-1">Shop Management System</p>
+          <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+            SMT Fruits
+          </h1>
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mt-1.5">
+            Shop Management System
+          </p>
         </div>
 
-        {/* Login Form */}
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+        {/* Secure Authorization Form Workspace */}
+        <div className="bg-white rounded-2xl border border-slate-200/60 p-6 shadow-sm animate-slide-up">
           <form onSubmit={handleSubmit} className="space-y-5">
-            {/* Username Field */}
+            {/* Username Input Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Username
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                Username Identifier
               </label>
               <div className="relative">
                 <User
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   name="username"
                   type="text"
                   required
                   autoFocus
-                  placeholder="Enter your username"
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none transition-all"
+                  placeholder="Enter shop account id"
+                  autoComplete="username"
+                  className="input pl-11"
                   value={creds.username}
                   onChange={handleChange}
                 />
               </div>
             </div>
 
-            {/* Password Field */}
+            {/* Password Input Field */}
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Password
+              <label className="block text-xs font-bold uppercase tracking-wide text-slate-500 mb-2">
+                Security Password
               </label>
               <div className="relative">
                 <Lock
                   size={18}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+                  className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
                 />
                 <input
                   name="password"
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="Enter your password"
-                  className="w-full pl-10 pr-12 py-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none transition-all"
+                  placeholder="Enter access code"
+                  autoComplete="current-password"
+                  className="input pl-11 pr-12"
                   value={creds.password}
                   onChange={handleChange}
                 />
                 <button
                   type="button"
+                  tabIndex={-1} // Bypasses keyboard focus jumping trap during checkout data entries
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center justify-center h-9 w-9 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-50 transition-colors"
                 >
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
-            {/* Submit Button */}
+            {/* Adaptive Platform Submit Processing Button */}
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full bg-green-600 text-white py-3 rounded-xl font-semibold active:scale-98 transition-all disabled:opacity-70 flex items-center justify-center gap-2 mt-6"
+              className="btn btn-primary w-full py-3.5 font-bold tracking-wide mt-6 disabled:opacity-50 text-sm"
             >
               {isSubmitting ? (
                 <>
                   <Loader2 size={18} className="animate-spin" />
-                  <span>Logging in...</span>
+                  <span>Verifying Credentials...</span>
                 </>
               ) : (
-                <span>Login</span>
+                <span>Access Dashboard</span>
               )}
             </button>
           </form>
         </div>
 
-        {/* Footer Note */}
-        <p className="text-center text-xs text-gray-400 mt-6">
-          Secure access only
+        {/* Base Platform Compliance Footers */}
+        <p className="text-center text-[11px] font-bold uppercase tracking-widest text-slate-400 mt-6 animate-pulse">
+          Secure Multi-Tenant Ledger Gateway
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Download,
   Filter,
@@ -17,22 +17,32 @@ function SummaryCard({ title, value, icon, color }) {
   const isPositive = value >= 0;
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+    <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 transition-all hover:shadow-md hover:border-slate-300/60">
       <div className="flex items-center justify-between">
-        <div>
-          <p className="text-xs text-gray-500 font-medium">{title}</p>
-          <p className={`text-2xl font-bold mt-1 ${color || "text-gray-900"}`}>
+        <div className="space-y-1.5">
+          <p className="text-[11px] text-slate-400 font-extrabold uppercase tracking-wider">
+            {title}
+          </p>
+          <p
+            className={`text-xl md:text-2xl font-black tracking-tight ${color || "text-slate-900"}`}
+          >
             ₹{value?.toLocaleString() || 0}
           </p>
         </div>
         <div
-          className={`h-10 w-10 rounded-xl flex items-center justify-center ${
-            isPositive ? "bg-green-50" : "bg-red-50"
+          className={`h-11 w-11 rounded-xl flex items-center justify-center border transition-colors ${
+            isPositive
+              ? "bg-emerald-50/60 border-emerald-100"
+              : "bg-rose-50/60 border-rose-100"
           }`}
         >
           <Icon
-            size={20}
-            className={isPositive ? "text-green-600" : "text-red-600"}
+            size={18}
+            className={
+              isPositive
+                ? "text-emerald-600 stroke-[2.5]"
+                : "text-rose-600 stroke-[2.5]"
+            }
           />
         </div>
       </div>
@@ -65,10 +75,11 @@ export default function Reports() {
 
         if (isMounted.current) {
           setReportData(res.data);
-          if (!silent) toast.success("Report updated");
+          if (!silent) toast.success("Analytical matrix synchronized");
         }
       } catch {
-        if (isMounted.current) toast.error("Failed to load report");
+        if (isMounted.current)
+          toast.error("Failed to compile financial statistics");
       } finally {
         if (isMounted.current) setLoading(false);
       }
@@ -80,16 +91,35 @@ export default function Reports() {
     fetchReport(true);
   }, [fetchReport]);
 
-  const salesList = reportData?.details?.sales_list || [];
-  const summary = reportData?.summary || {};
+  const salesList = useMemo(
+    () => reportData?.details?.sales_list || [],
+    [reportData],
+  );
+  const summary = useMemo(() => reportData?.summary || {}, [reportData]);
 
-  const totalOutflow =
-    (parseFloat(summary.expenses) || 0) + (parseFloat(summary.wastage) || 0);
-  const netProfit = parseFloat(summary.net_profit) || 0;
+  const totalOutflow = useMemo(() => {
+    return (
+      (parseFloat(summary.expenses) || 0) + (parseFloat(summary.wastage) || 0)
+    );
+  }, [summary.expenses, summary.wastage]);
+
+  const netProfit = useMemo(
+    () => parseFloat(summary.net_profit) || 0,
+    [summary.net_profit],
+  );
+
+  // Memoized multi-channel payment framework breakdown
+  const localizedPayments = useMemo(() => {
+    return salesList.reduce((acc, sale) => {
+      const type = sale.payment_type || "unknown";
+      acc[type] = (acc[type] || 0) + parseFloat(sale.total_amount);
+      return acc;
+    }, {});
+  }, [salesList]);
 
   const exportToCSV = () => {
     if (!salesList.length) {
-      toast.error("No data to export");
+      toast.error("Dataset empty; compilation aborted");
       return;
     }
 
@@ -109,187 +139,251 @@ export default function Reports() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `SMT_Report_${dates.start}_to_${dates.end}.csv`;
+    link.download = `SMT_Financials_${dates.start}_to_${dates.end}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success("CSV downloaded");
+    toast.success("CSV dataset preserved locally");
   };
 
   return (
-    <div className="space-y-5 pb-5">
-      {/* Header */}
-      <div>
-        <h1 className="text-xl font-bold text-gray-900">Reports</h1>
-        <p className="text-sm text-gray-500">Sales & financial analysis</p>
+    <div className="space-y-6 pb-24 select-none animate-fade-in">
+      {/* Structural Page Title Section */}
+      <div className="border-b border-slate-100 pb-3">
+        <h1 className="text-xl font-black text-slate-900 tracking-tight">
+          Financial Auditing
+        </h1>
+        <p className="text-xs font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
+          Performance Analytics & Cost Distributions
+        </p>
       </div>
 
-      {/* Date Filter */}
-      <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-        <div className="flex items-center gap-2 mb-4">
-          <Filter size={16} className="text-green-600" />
-          <h2 className="font-semibold text-gray-900">Date Range</h2>
+      {/* Responsive Date Pipeline Controls */}
+      <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80">
+        <div className="flex items-center gap-2 mb-4 border-b border-slate-50 pb-2">
+          <Filter size={15} className="text-emerald-600 stroke-[2.5]" />
+          <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+            Date Constraint Parameters
+          </h2>
         </div>
 
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">
-              Start Date
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+              Start Epoch Limit
             </label>
             <input
               type="date"
-              className="w-full p-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+              className="w-full p-3 border border-slate-200 rounded-xl font-semibold text-sm text-slate-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 bg-slate-50/50"
               value={dates.start}
               onChange={(e) => setDates({ ...dates, start: e.target.value })}
             />
           </div>
 
-          <div>
-            <label className="text-xs text-gray-500 font-medium mb-1 block">
-              End Date
+          <div className="space-y-1">
+            <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider">
+              Terminal Boundary Date
             </label>
             <input
               type="date"
-              className="w-full p-3 border border-gray-200 rounded-xl focus:border-green-500 focus:ring-2 focus:ring-green-100 outline-none"
+              className="w-full p-3 border border-slate-200 rounded-xl font-semibold text-sm text-slate-700 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 bg-slate-50/50"
               value={dates.end}
               onChange={(e) => setDates({ ...dates, end: e.target.value })}
             />
           </div>
+        </div>
 
-          <div className="grid grid-cols-2 gap-3 pt-2">
-            <button
-              onClick={() => fetchReport(false)}
-              disabled={loading}
-              className="flex items-center justify-center gap-2 bg-gray-900 text-white py-3 rounded-xl font-medium active:scale-98"
-            >
-              {loading ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <RefreshCcw size={18} />
-              )}
-              Update
-            </button>
+        {/* System Trigger Actions Hub */}
+        <div className="grid grid-cols-2 gap-3 mt-5 pt-3 border-t border-slate-100/80">
+          <button
+            onClick={() => fetchReport(false)}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 bg-slate-950 hover:bg-slate-850 text-xs font-bold text-white py-3.5 rounded-xl transition-all active:scale-95 shadow-sm disabled:opacity-50"
+          >
+            {loading ? (
+              <Loader2 size={14} className="animate-spin stroke-[2.5]" />
+            ) : (
+              <RefreshCcw size={14} className="stroke-[2.5]" />
+            )}
+            <span>Synchronize Metrics</span>
+          </button>
 
-            <button
-              onClick={exportToCSV}
-              disabled={!salesList.length || loading}
-              className="flex items-center justify-center gap-2 border border-gray-200 bg-white py-3 rounded-xl font-medium text-gray-700 active:bg-gray-50 disabled:opacity-50"
-            >
-              <Download size={18} />
-              Export
-            </button>
-          </div>
+          <button
+            onClick={exportToCSV}
+            disabled={!salesList.length || loading}
+            className="flex items-center justify-center gap-2 border border-slate-200 hover:border-slate-300 bg-white text-xs font-bold text-slate-700 py-3.5 rounded-xl transition-all active:bg-slate-50 disabled:opacity-40"
+          >
+            <Download size={14} className="stroke-[2.5]" />
+            <span>Export Spreadsheets</span>
+          </button>
         </div>
       </div>
 
-      {/* Loading State */}
+      {/* Skeleton Frame Loader Framework */}
       {loading && !reportData && (
         <div className="space-y-3">
-          {[1, 2, 3, 4].map((i) => (
-            <LoadingSkeleton key={i} className="h-28" />
+          {[1, 2, 3].map((i) => (
+            <LoadingSkeleton key={i} className="h-24 rounded-2xl" />
           ))}
         </div>
       )}
 
-      {/* Report Data */}
+      {/* Main Reporting Block Output */}
       {reportData && (
-        <div className="space-y-5">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 gap-3">
+        <div className="space-y-6">
+          {/* Metrics Summary Grid Matrix */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <SummaryCard
-              title="Revenue"
+              title="Gross Receipts"
               value={summary.sales}
               icon={TrendingUp}
-              color="text-green-600"
+              color="text-slate-900"
             />
             <SummaryCard
-              title="Outflow"
+              title="Operational Outflow"
               value={totalOutflow}
               icon={Wallet}
-              color="text-red-600"
+              color="text-rose-600"
             />
             <SummaryCard
-              title="Net Profit"
+              title="Calculated Margin"
               value={netProfit}
               icon={TrendingUp}
-              color={netProfit >= 0 ? "text-green-600" : "text-red-600"}
+              color={netProfit >= 0 ? "text-emerald-600" : "text-rose-600"}
             />
             <SummaryCard
-              title="Wastage"
+              title="Wastage Appraisals"
               value={summary.wastage}
               icon={TrendingDown}
               color="text-amber-600"
             />
           </div>
 
-          {/* Payment Methods */}
-          <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
-            <h2 className="font-semibold text-gray-900 mb-3">
-              Payment Methods
+          {/* Payment Gateway Distribution Layout */}
+          <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80">
+            <h2 className="text-xs font-black uppercase text-slate-400 tracking-wider mb-4">
+              Pipeline Settlement Methods
             </h2>
-            <div className="space-y-2">
-              {(() => {
-                const payments = salesList.reduce((acc, sale) => {
-                  const type = sale.payment_type || "unknown";
-                  acc[type] = (acc[type] || 0) + parseFloat(sale.total_amount);
-                  return acc;
-                }, {});
-
-                return Object.entries(payments).map(([type, amount]) => (
-                  <div
-                    key={type}
-                    className="flex items-center justify-between p-3 bg-gray-50 rounded-xl"
-                  >
-                    <span className="font-medium text-gray-900 capitalize">
-                      {type}
-                    </span>
-                    <span className="font-bold text-gray-900">
-                      ₹{amount.toLocaleString()}
-                    </span>
-                  </div>
-                ));
-              })()}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {Object.entries(localizedPayments).map(([type, amount]) => (
+                <div
+                  key={type}
+                  className="flex items-center justify-between p-4 bg-slate-50/60 border border-slate-100 rounded-xl font-semibold"
+                >
+                  <span className="text-xs text-slate-500 capitalize tracking-wide">
+                    {type} Pipeline
+                  </span>
+                  <span className="text-sm font-extrabold text-slate-900">
+                    ₹{amount.toLocaleString()}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Transactions List */}
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div className="p-4 border-b border-gray-100">
-              <h2 className="font-semibold text-gray-900">Transactions</h2>
-              <p className="text-xs text-gray-500 mt-1">
-                {salesList.length} orders found
+          {/* System Transaction Records Ledger */}
+          <div className="bg-white rounded-2xl shadow-xs border border-slate-200/80 overflow-hidden">
+            <div className="p-5 border-b border-slate-100 bg-slate-50/40">
+              <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
+                Auditable Transactions
+              </h2>
+              <p className="text-[11px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wide">
+                Showing top {Math.min(salesList.length, 20)} chronological
+                instances
               </p>
             </div>
 
-            <div className="divide-y divide-gray-100">
+            {/* DESKTOP REVENUE LEDGER MATRIX */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full border-collapse text-left text-sm">
+                <thead className="bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
+                  <tr>
+                    <th className="px-5 py-3.5">Identifier Reference</th>
+                    <th className="px-5 py-3.5">Settlement Timestamp</th>
+                    <th className="px-5 py-3.5">Registered Receiver</th>
+                    <th className="px-5 py-3.5">Operational Pathway</th>
+                    <th className="px-5 py-3.5 text-right">Settled Value</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 font-semibold text-slate-600 text-xs">
+                  {salesList.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan="5"
+                        className="px-5 py-8 text-center text-slate-400"
+                      >
+                        Zero transactional logs logged inside selected timeframe
+                      </td>
+                    </tr>
+                  ) : (
+                    salesList.slice(0, 20).map((sale) => (
+                      <tr
+                        key={sale.id}
+                        className="hover:bg-slate-50/50 transition-colors"
+                      >
+                        <td className="px-5 py-4 font-extrabold text-slate-900">
+                          #SMT-{sale.id}
+                        </td>
+                        <td className="px-5 py-4 text-slate-400 font-medium">
+                          {new Date(sale.created_at).toLocaleDateString()}
+                        </td>
+                        <td className="px-5 py-4 text-slate-800">
+                          {sale.customer_name || "Walk-in Client"}
+                        </td>
+                        <td className="px-5 py-4">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-[9px] font-black uppercase tracking-wider border ${
+                              sale.payment_type === "cash"
+                                ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                                : "bg-amber-50 border-amber-100 text-amber-700"
+                            }`}
+                          >
+                            {sale.payment_type || "unknown"}
+                          </span>
+                        </td>
+                        <td className="px-5 py-4 text-right font-black text-slate-900 text-sm">
+                          ₹{parseFloat(sale.total_amount).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* MOBILE CONDENSED STREAM SUMMARY LIST */}
+            <div className="divide-y divide-slate-100 block md:hidden">
               {salesList.length === 0 ? (
-                <div className="p-8 text-center text-gray-400">
-                  No transactions for this period
+                <div className="p-8 text-center text-xs font-bold text-slate-400">
+                  Zero transactional logs discovered inside timeframe
                 </div>
               ) : (
                 salesList.slice(0, 20).map((sale) => (
-                  <div key={sale.id} className="p-4">
-                    <div className="flex items-center justify-between mb-2">
+                  <div
+                    key={sale.id}
+                    className="p-4 space-y-3 hover:bg-slate-50/40 transition-colors"
+                  >
+                    <div className="flex items-center justify-between">
                       <div>
-                        <p className="font-semibold text-gray-900">
+                        <p className="font-extrabold text-slate-900 text-sm">
                           #SMT-{sale.id}
                         </p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-[10px] font-bold text-slate-400 mt-0.5">
                           {new Date(sale.created_at).toLocaleDateString()}
                         </p>
                       </div>
-                      <p className="font-bold text-gray-900">
+                      <p className="text-base font-black text-slate-900">
                         ₹{parseFloat(sale.total_amount).toLocaleString()}
                       </p>
                     </div>
-                    <div className="flex items-center justify-between">
-                      <p className="text-sm text-gray-600">
-                        {sale.customer_name || "Walk-in"}
+                    <div className="flex items-center justify-between text-xs">
+                      <p className="font-semibold text-slate-600">
+                        {sale.customer_name || "Walk-in Buyer"}
                       </p>
                       <span
-                        className={`text-xs px-2 py-1 rounded-full capitalize ${
+                        className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 border rounded-md ${
                           sale.payment_type === "cash"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-amber-100 text-amber-700"
+                            ? "bg-emerald-50 border-emerald-100 text-emerald-700"
+                            : "bg-amber-50 border-amber-100 text-amber-700"
                         }`}
                       >
                         {sale.payment_type || "unknown"}

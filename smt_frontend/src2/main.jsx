@@ -1,4 +1,4 @@
-import { StrictMode } from "react";
+import { StrictMode, useEffect } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
@@ -7,13 +7,22 @@ import App from "./App.jsx";
 
 import "./index.css";
 
-// Simplified loader removal - faster and smoother
+// Managed safety unmount logic inside a microtask frame
 const hideInitialLoader = () => {
   const loader = document.getElementById("initial-loader");
   if (loader) {
     loader.style.opacity = "0";
-    setTimeout(() => loader.remove(), 300);
+    setTimeout(() => loader.remove(), 400); // Matched with index.html transition
   }
+};
+
+// Simplified App mounting lifecycles wrapper
+const AppRunner = () => {
+  useEffect(() => {
+    hideInitialLoader();
+  }, []);
+
+  return <App />;
 };
 
 const rootElement = document.getElementById("root");
@@ -29,46 +38,54 @@ root.render(
     <BrowserRouter>
       <AuthProvider>
         <Toaster
-          position="top-center"
+          position="top-right" // Standard for professional dashboard viewports
           reverseOrder={false}
-          gutter={8}
+          gutter={12}
           containerStyle={{
-            top: 60,
-            left: 16,
-            right: 16,
+            // Dynamic viewport cushioning to prevent layout overlapping on headers
+            top: "24px",
+            left: "24px",
+            right: "24px",
+            bottom: "24px",
           }}
           toastOptions={{
-            duration: 3000,
+            duration: 3500,
             style: {
-              background: "#1f2937",
-              color: "#ffffff",
-              borderRadius: "12px",
-              padding: "12px 16px",
+              // Premium, high-contrast, clean system glassmorphism look
+              background: "#ffffff",
+              color: "#1e293b", // slate-800
+              borderRadius: "16px",
+              padding: "14px 20px",
               fontSize: "14px",
-              fontWeight: "500",
-              boxShadow: "0 4px 12px rgba(0, 0, 0, 0.15)",
-              maxWidth: "90vw",
+              fontWeight: "600",
+              boxShadow:
+                "0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)",
+              maxWidth: "420px",
+              border: "1px solid #f1f5f9",
             },
             success: {
               iconTheme: {
-                primary: "#10b981",
-                secondary: "#ffffff",
-              },
-              duration: 2500,
-            },
-            error: {
-              iconTheme: {
-                primary: "#ef4444",
+                primary: "#10b981", // SMT Brand Emerald
                 secondary: "#ffffff",
               },
               duration: 3000,
             },
+            error: {
+              iconTheme: {
+                primary: "#ef4444", // Modern warning Red
+                secondary: "#ffffff",
+              },
+              duration: 4000, // Error messages need slightly longer time to read safely
+            },
             loading: {
-              duration: 2000,
+              style: {
+                background: "#f8fafc",
+                color: "#64748b",
+              },
             },
           }}
         />
-        <App onMount={hideInitialLoader} />
+        <AppRunner />
       </AuthProvider>
     </BrowserRouter>
   </StrictMode>,

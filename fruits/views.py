@@ -93,7 +93,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
     filter_backends = [filters.SearchFilter]
-    search_fields = ["name", "phone"]
+    search_fields = ["name"]
 
 
 class SupplierViewSet(viewsets.ModelViewSet):

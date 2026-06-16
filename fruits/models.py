@@ -49,7 +49,6 @@ class Customer(models.Model):
     """Customers for credit tracking and sales history."""
 
     name = models.CharField(max_length=255, db_index=True)
-    phone = models.CharField(max_length=15, unique=True, db_index=True)
     address = models.TextField(blank=True)
     balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: smt-backend
+    name: smtapp
     runtime: python
     plan: free
     healthCheckPath: /api/health/

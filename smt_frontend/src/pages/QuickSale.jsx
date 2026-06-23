@@ -12,6 +12,7 @@ import {
   User,
   Wallet,
   X,
+  Edit2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api";
@@ -94,7 +95,8 @@ export default function QuickSale() {
             product: product.id,
             product_name: product.name,
             quantity: String(step),
-            unit_price: decimalToNumber(product.price_per_unit),
+            // Initialize as string for editable inputs, defaulting to base price
+            unit_price: String(decimalToNumber(product.price_per_unit)),
             unit: product.unit,
           },
         ];
@@ -146,6 +148,27 @@ export default function QuickSale() {
     );
   };
 
+  // NEW: Safely update dynamic custom unit prices
+  const updatePrice = (id, newPriceValue) => {
+    if (newPriceValue === "") {
+      setCart((currentCart) =>
+        currentCart.map((item) =>
+          item.product === id ? { ...item, unit_price: "" } : item,
+        ),
+      );
+      return;
+    }
+
+    const cleanValue = sanitizeDecimalInput(newPriceValue);
+    if (decimalToNumber(cleanValue) < 0) return;
+
+    setCart((currentCart) =>
+      currentCart.map((item) =>
+        item.product === id ? { ...item, unit_price: cleanValue } : item,
+      ),
+    );
+  };
+
   const removeFromCart = (id) => {
     setCart((currentCart) => currentCart.filter((item) => item.product !== id));
   };
@@ -160,11 +183,21 @@ export default function QuickSale() {
   const total = subtotal - discountAmount;
 
   const handleCheckout = async () => {
+    // Validate quantities
     const hasInvalidQuantities = cart.some(
       (item) => item.quantity === "" || decimalToNumber(item.quantity) <= 0,
     );
     if (hasInvalidQuantities) {
       toast.error("Please enter a valid quantity for all line items");
+      return;
+    }
+
+    // Validate dynamic prices
+    const hasInvalidPrices = cart.some(
+      (item) => item.unit_price === "" || decimalToNumber(item.unit_price) < 0,
+    );
+    if (hasInvalidPrices) {
+      toast.error("Please enter a valid custom price for all line items");
       return;
     }
 
@@ -192,7 +225,7 @@ export default function QuickSale() {
         items: cart.map((item) => ({
           product: item.product,
           quantity: decimalToString(item.quantity),
-          unit_price: decimalToString(item.unit_price),
+          unit_price: decimalToString(item.unit_price), // Saves the custom user price
           subtotal: decimalToString(cartLineTotal(item)),
         })),
       });
@@ -333,7 +366,7 @@ export default function QuickSale() {
 
                 <div className="mt-4 pt-2 border-t border-slate-50">
                   <span className="text-xs text-slate-400 font-medium">
-                    Price per {product.unit}
+                    Base Price per {product.unit}
                   </span>
                   <p className="text-base font-black text-slate-900 mt-0.5">
                     {formatCurrencyINR(product.price_per_unit)}
@@ -390,14 +423,32 @@ export default function QuickSale() {
                     className="rounded-xl border border-slate-200/80 bg-white p-3.5 shadow-xs"
                   >
                     <div className="flex items-start justify-between gap-4">
-                      <div>
+                      <div className="flex-1">
                         <h3 className="font-bold text-slate-800 text-sm tracking-tight">
                           {item.product_name}
                         </h3>
-                        <p className="text-xs font-semibold text-slate-400 mt-0.5">
-                          {formatCurrencyINR(item.unit_price)} per {item.unit}
-                        </p>
+
+                        {/* CUSTOM EDITABLE PRICE INPUT */}
+                        <div className="flex items-center gap-1.5 mt-2 bg-slate-50 border border-slate-200 rounded-lg p-1 w-max">
+                          <Edit2 size={12} className="text-slate-400 ml-1" />
+                          <span className="text-[11px] font-black text-slate-500">
+                            ₹
+                          </span>
+                          <input
+                            type="text"
+                            value={item.unit_price}
+                            onChange={(e) =>
+                              updatePrice(item.product, e.target.value)
+                            }
+                            className="w-16 bg-transparent text-xs font-bold text-slate-800 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                            placeholder="0.00"
+                          />
+                          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider pr-2">
+                            / {item.unit}
+                          </span>
+                        </div>
                       </div>
+
                       <button
                         onClick={() => removeFromCart(item.product)}
                         className="p-1 rounded-lg hover:bg-rose-50 text-slate-400 hover:text-rose-500 transition-colors"
@@ -407,7 +458,7 @@ export default function QuickSale() {
                       </button>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between gap-3 border-t border-slate-50 pt-3">
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-slate-50 pt-3">
                       <div className="flex items-center gap-1.5 bg-slate-50 border border-slate-200 p-1 rounded-lg">
                         <button
                           onClick={() => {
@@ -512,7 +563,7 @@ export default function QuickSale() {
                     <select
                       value={selectedCustomer}
                       onChange={(e) => setSelectedCustomer(e.target.value)}
-                      className="w-full text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 py-3 pl-9 pr-4 text-slate-700 focus:outline-none focus:border-emerald-500 appearance-none"
+                      className="w-full text-xs font-bold rounded-xl border border-slate-200 bg-slate-50 py-3 pl-9 pr-4 text-slate-700 focus:outline-none focus:border-emerald-50 appearance-none"
                     >
                       <option value="">Select Target Account Profile</option>
                       {customers.map((c) => (

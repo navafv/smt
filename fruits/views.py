@@ -34,6 +34,7 @@ from .serializers import (
 class ProductViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = ProductSerializer
+    pagination_class = None
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     search_fields = ["name"]
     ordering_fields = ["stock_quantity", "price_per_unit", "created_at"]
@@ -49,8 +50,9 @@ class ProductViewSet(viewsets.ModelViewSet):
 class SaleViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SaleSerializer
-    filter_backends = [DjangoFilterBackend, filters.OrderingFilter]
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = ["payment_type", "customer"]
+    search_fields = ["id", "customer__name"]
 
     def get_queryset(self):
         return Sale.objects.select_related("customer").prefetch_related("items__product")
@@ -71,6 +73,8 @@ class SaleViewSet(viewsets.ModelViewSet):
 class PurchaseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = PurchaseSerializer
+    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    search_fields = ["id", "supplier__name"]
 
     def get_queryset(self):
         return Purchase.objects.select_related("supplier").prefetch_related("items__product")
@@ -92,6 +96,7 @@ class CustomerViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Customer.objects.all()
     serializer_class = CustomerSerializer
+    pagination_class = None
     filter_backends = [filters.SearchFilter]
     search_fields = ["name"]
 
@@ -100,6 +105,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Supplier.objects.all()
     serializer_class = SupplierSerializer
+    pagination_class = None
     filter_backends = [filters.SearchFilter]
     search_fields = ["name", "contact_number"]
 
@@ -107,6 +113,7 @@ class SupplierViewSet(viewsets.ModelViewSet):
 class CustomerPaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = CustomerPaymentSerializer
+    pagination_class = None
 
     def get_queryset(self):
         return CustomerPayment.objects.select_related("customer")
@@ -129,6 +136,7 @@ class CustomerPaymentViewSet(viewsets.ModelViewSet):
 class SupplierPaymentViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = SupplierPaymentSerializer
+    pagination_class = None
 
     def get_queryset(self):
         return SupplierPayment.objects.select_related("supplier")
@@ -152,12 +160,14 @@ class ExpenseViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     queryset = Expense.objects.all()
     serializer_class = ExpenseSerializer
+    pagination_class = None
     filterset_fields = ["category"]
 
 
 class StockReturnViewSet(viewsets.ModelViewSet):
     permission_classes = [IsAuthenticated]
     serializer_class = StockReturnSerializer
+    pagination_class = None
 
     def get_queryset(self):
         return StockReturn.objects.select_related("product", "supplier")

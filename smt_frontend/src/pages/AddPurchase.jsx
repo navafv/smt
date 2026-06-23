@@ -12,6 +12,12 @@ import {
 import api from "../api";
 import toast from "react-hot-toast";
 import { formatCurrencyINR } from "../utils/currency";
+import {
+  decimalToNumber,
+  decimalToString,
+  sumDecimalValues,
+  sanitizeDecimalInput,
+} from "../utils/decimal";
 
 export default function AddPurchase() {
   const [suppliers, setSuppliers] = useState([]);
@@ -64,12 +70,22 @@ export default function AddPurchase() {
   const updateItem = (index, field, value) => {
     setItems((currentItems) => {
       const nextItems = [...currentItems];
-      nextItems[index][field] = value;
 
       if (field === "quantity" || field === "unit_price") {
-        const quantity = parseFloat(nextItems[index].quantity) || 0;
-        const unitPrice = parseFloat(nextItems[index].unit_price) || 0;
-        nextItems[index].subtotal = (quantity * unitPrice).toFixed(2);
+        // Sanitize input to strip invalid chars and prevent double-decimals
+        const cleanValue = sanitizeDecimalInput(value);
+        nextItems[index][field] = cleanValue;
+
+        const quantity = decimalToNumber(nextItems[index].quantity);
+        const unitPrice = decimalToNumber(nextItems[index].unit_price);
+
+        // Use integer math to prevent JS floating-point drift (e.g. 0.1 * 0.2)
+        const safeSubtotal =
+          (Math.round(quantity * 1000) * Math.round(unitPrice * 1000)) /
+          1000000;
+        nextItems[index].subtotal = decimalToString(safeSubtotal);
+      } else {
+        nextItems[index][field] = value;
       }
 
       return nextItems;
@@ -77,10 +93,7 @@ export default function AddPurchase() {
   };
 
   const total = useMemo(
-    () =>
-      items
-        .reduce((sum, item) => sum + parseFloat(item.subtotal || 0), 0)
-        .toFixed(2),
+    () => decimalToString(sumDecimalValues(items.map((item) => item.subtotal))),
     [items],
   );
 
@@ -102,9 +115,9 @@ export default function AddPurchase() {
         total_amount: total,
         items: items.map((item) => ({
           product: Number(item.product),
-          quantity: parseFloat(item.quantity).toFixed(2),
-          unit_price: parseFloat(item.unit_price).toFixed(2),
-          subtotal: parseFloat(item.subtotal).toFixed(2),
+          quantity: decimalToString(item.quantity),
+          unit_price: decimalToString(item.unit_price),
+          subtotal: decimalToString(item.subtotal),
         })),
       });
 
@@ -219,8 +232,7 @@ export default function AddPurchase() {
                   </td>
                   <td className="p-3">
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       placeholder="0.00"
                       className="w-full rounded-xl border border-slate-200 p-2.5 outline-none font-mono font-bold focus:border-green-500 focus:ring-4 focus:ring-green-600/10 transition-all bg-white"
                       value={item.quantity}
@@ -231,8 +243,7 @@ export default function AddPurchase() {
                   </td>
                   <td className="p-3">
                     <input
-                      type="number"
-                      step="0.01"
+                      type="text"
                       placeholder="0.00"
                       className="w-full rounded-xl border border-slate-200 p-2.5 outline-none font-mono font-bold focus:border-green-500 focus:ring-4 focus:ring-green-600/10 transition-all bg-white"
                       value={item.unit_price}
@@ -292,8 +303,7 @@ export default function AddPurchase() {
                     Quantity
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     placeholder="0.00"
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs font-bold font-mono text-slate-700 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-600/10 transition-all"
                     value={item.quantity}
@@ -307,8 +317,7 @@ export default function AddPurchase() {
                     Cost Price (₹)
                   </label>
                   <input
-                    type="number"
-                    step="0.01"
+                    type="text"
                     placeholder="0.00"
                     className="w-full rounded-xl border border-slate-200 p-3 text-xs font-bold font-mono text-slate-700 outline-none focus:border-green-500 focus:ring-4 focus:ring-green-600/10 transition-all"
                     value={item.unit_price}

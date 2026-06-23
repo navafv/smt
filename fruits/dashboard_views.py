@@ -60,8 +60,10 @@ class DashboardSummaryView(APIView):
             } for item in sales_trend_qs
         ]
 
-        # 3. Top Products (By Quantity Sold - All Time)
-        top_products = Product.objects.annotate(
+        # 3. Top Products (By Quantity Sold - Last 30 Days)
+        top_products = Product.objects.filter(
+            saleitem__sale__created_at__date__range=[thirty_days_ago, today]
+        ).annotate(
             total_sold=Coalesce(Sum('saleitem__quantity'), 0, output_field=DecimalField())
         ).filter(total_sold__gt=0).order_by('-total_sold')[:5]
 

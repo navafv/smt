@@ -107,6 +107,10 @@ class Sale(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["payment_type", "created_at"]),
+        ]
 
     def __str__(self):
         sale_id = self.id if self.id is not None else "unsaved"
@@ -143,6 +147,9 @@ class Purchase(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["created_at"]),
+        ]
 
     def __str__(self):
         purchase_id = self.id if self.id is not None else "unsaved"
@@ -246,6 +253,10 @@ class StockReturn(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["created_at"]),
+            models.Index(fields=["return_type", "created_at"]),
+        ]
 
     def __str__(self):
         product_name = self.product.name if self.product_id and self.product else "Deleted product"
@@ -273,6 +284,10 @@ class Expense(models.Model):
 
     class Meta:
         ordering = ["-date"]
+        indexes = [
+            models.Index(fields=["date"]),
+            models.Index(fields=["category", "date"]),
+        ]
 
     def __str__(self):
         title = self.title or "Untitled expense"

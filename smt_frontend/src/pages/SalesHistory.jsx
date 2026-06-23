@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Banknote,
   CreditCard,
@@ -8,6 +8,8 @@ import {
   Share2,
   User,
   X,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { toPng } from "html-to-image";
@@ -18,6 +20,8 @@ export default function SalesHistory() {
   const [sales, setSales] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedSale, setSelectedSale] = useState(null);
   const [isSharing, setIsSharing] = useState(false);
   const [isPrinting, setIsPrinting] = useState(false);
@@ -26,8 +30,14 @@ export default function SalesHistory() {
   const fetchSales = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/sales/");
-      setSales(res.data);
+      const res = await api.get(`/sales/?page=${page}&search=${searchTerm}`);
+      if (res.data.results) {
+        setSales(res.data.results);
+        setTotalPages(Math.ceil(res.data.count / 50) || 1);
+      } else {
+        setSales(res.data);
+        setTotalPages(1);
+      }
     } catch {
       toast.error("Failed to load historical ledger index");
     } finally {
@@ -36,21 +46,17 @@ export default function SalesHistory() {
   };
 
   useEffect(() => {
-    fetchSales();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      fetchSales();
+    }, 400);
 
-  const filteredSales = useMemo(
-    () =>
-      sales.filter(
-        (sale) =>
-          sale.id.toString().includes(searchTerm) ||
-          (sale.customer_name &&
-            sale.customer_name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())),
-      ),
-    [sales, searchTerm],
-  );
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, page]);
+
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+    setPage(1); // Reset to first page on new query
+  };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleString();
 
@@ -122,7 +128,7 @@ export default function SalesHistory() {
           Sales Register
         </h1>
         <p className="text-xs font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
-          {sales.length} Logged Transactions
+          Auditable Ledger Terminal
         </p>
       </div>
 
@@ -134,14 +140,17 @@ export default function SalesHistory() {
         />
         <input
           type="text"
-          placeholder="Filter logs by identifier or customer name..."
+          placeholder="Filter server logs by identifier or customer name..."
           className="w-full rounded-xl border border-slate-200 bg-white py-3 pl-10 pr-10 text-sm font-medium outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 placeholder:text-slate-400"
           value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
+          onChange={handleSearchChange}
         />
         {searchTerm && (
           <button
-            onClick={() => setSearchTerm("")}
+            onClick={() => {
+              setSearchTerm("");
+              setPage(1);
+            }}
             className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 animate-fade-in"
             aria-label="Flush active search parameters"
           >
@@ -151,14 +160,14 @@ export default function SalesHistory() {
       </div>
 
       {/* Main Viewport Content Manager */}
-      {loading ? (
+      {loading && sales.length === 0 ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2
             size={28}
             className="animate-spin text-emerald-600 stroke-[2.5]"
           />
         </div>
-      ) : filteredSales.length === 0 ? (
+      ) : sales.length === 0 ? (
         <div className="rounded-2xl bg-slate-50 border-2 border-dashed border-slate-200 py-12 text-center">
           <p className="text-sm font-semibold text-slate-400">
             No logs discovered matching query indices
@@ -167,8 +176,8 @@ export default function SalesHistory() {
       ) : (
         <>
           {/* DESKTOP METRIC LAYOUT */}
-          <div className="hidden md:block overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
-            <table className="w-full border-collapse text-left text-sm">
+          <div className="hidden md:flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
+            <table className="w-full border-collapse text-left text-sm flex-1">
               <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200">
                 <tr>
                   <th className="px-6 py-4">Transaction Code</th>
@@ -178,8 +187,16 @@ export default function SalesHistory() {
                   <th className="px-6 py-4 text-right">Gross Valuation</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                {filteredSales.map((sale) => (
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700 relative">
+                {loading && (
+                  <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                    <Loader2
+                      size={24}
+                      className="animate-spin text-emerald-600 stroke-[2.5]"
+                    />
+                  </div>
+                )}
+                {sales.map((sale) => (
                   <tr
                     key={sale.id}
                     onClick={() => setSelectedSale(sale)}
@@ -234,11 +251,42 @@ export default function SalesHistory() {
                 ))}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 transition-colors"
+                >
+                  <ChevronLeft size={16} className="stroke-[2.5]" /> Previous
+                </button>
+                <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 transition-colors"
+                >
+                  Next <ChevronRight size={16} className="stroke-[2.5]" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* MOBILE INTERACTIVE CARDS */}
-          <div className="space-y-3 block md:hidden">
-            {filteredSales.map((sale) => (
+          <div className="space-y-3 block md:hidden relative">
+            {loading && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-2xl">
+                <Loader2
+                  size={24}
+                  className="animate-spin text-emerald-600 stroke-[2.5]"
+                />
+              </div>
+            )}
+            {sales.map((sale) => (
               <button
                 key={sale.id}
                 onClick={() => setSelectedSale(sale)}
@@ -282,6 +330,29 @@ export default function SalesHistory() {
                 </div>
               </button>
             ))}
+
+            {/* Mobile Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 pb-2 px-1">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="h-10 px-4 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-xs font-bold text-slate-600 active:bg-slate-50 disabled:opacity-40 shadow-xs"
+                >
+                  <ChevronLeft size={16} /> Prev
+                </button>
+                <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">
+                  Pg {page} / {totalPages}
+                </span>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="h-10 px-4 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-xs font-bold text-slate-600 active:bg-slate-50 disabled:opacity-40 shadow-xs"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </>
       )}
@@ -320,7 +391,7 @@ export default function SalesHistory() {
             </div>
 
             {/* Document Print Area Enclosure */}
-            <div className="flex-1 overflow-y-auto p-5">
+            <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
               <div
                 ref={receiptRef}
                 className="print-area bg-white border border-slate-100 rounded-xl p-5 shadow-xs"

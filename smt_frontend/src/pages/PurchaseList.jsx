@@ -1,5 +1,14 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { Loader2, Search, Truck, X, Eye, FileText } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import {
+  Loader2,
+  Search,
+  Truck,
+  X,
+  Eye,
+  FileText,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
 import api from "../api";
 import toast from "react-hot-toast";
 import { formatCurrencyINR } from "../utils/currency";
@@ -8,13 +17,23 @@ export default function PurchaseList() {
   const [purchases, setPurchases] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [selectedPurchase, setSelectedPurchase] = useState(null);
 
   const fetchPurchases = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/purchases/");
-      setPurchases(res.data);
+      const res = await api.get(
+        `/purchases/?page=${page}&search=${searchTerm}`,
+      );
+      if (res.data.results) {
+        setPurchases(res.data.results);
+        setTotalPages(Math.ceil(res.data.count / 50) || 1);
+      } else {
+        setPurchases(res.data);
+        setTotalPages(1);
+      }
     } catch {
       toast.error("Failed to sync procurement transaction indexes.");
     } finally {
@@ -23,21 +42,17 @@ export default function PurchaseList() {
   };
 
   useEffect(() => {
-    fetchPurchases();
-  }, []);
+    const delayDebounceFn = setTimeout(() => {
+      fetchPurchases();
+    }, 400);
 
-  const filteredPurchases = useMemo(
-    () =>
-      purchases.filter(
-        (purchase) =>
-          (purchase.supplier_name &&
-            purchase.supplier_name
-              .toLowerCase()
-              .includes(searchTerm.toLowerCase())) ||
-          purchase.id.toString().includes(searchTerm),
-      ),
-    [purchases, searchTerm],
-  );
+    return () => clearTimeout(delayDebounceFn);
+  }, [searchTerm, page]);
+
+  const handleSearchChange = (event) => {
+    setSearchTerm(event.target.value);
+    setPage(1); // Reset to first page on new query
+  };
 
   const formatDate = (dateString) =>
     new Date(dateString).toLocaleDateString(undefined, {
@@ -54,7 +69,7 @@ export default function PurchaseList() {
           Procurement Ledger
         </h1>
         <p className="text-[11px] font-semibold text-slate-400 mt-0.5 uppercase tracking-wider">
-          {purchases.length} Registered Invoices
+          Auditable Ledger Terminal
         </p>
       </div>
 
@@ -66,22 +81,34 @@ export default function PurchaseList() {
         />
         <input
           type="text"
-          placeholder="Query purchase manifest via vendor string or invoice index..."
-          className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-4 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 bg-white"
+          placeholder="Query server logs via vendor string or invoice index..."
+          className="w-full rounded-xl border border-slate-200 py-3.5 pl-11 pr-10 text-sm font-semibold text-slate-700 outline-none transition-all focus:border-amber-500 focus:ring-4 focus:ring-amber-500/10 bg-white"
           value={searchTerm}
-          onChange={(event) => setSearchTerm(event.target.value)}
+          onChange={handleSearchChange}
         />
+        {searchTerm && (
+          <button
+            onClick={() => {
+              setSearchTerm("");
+              setPage(1);
+            }}
+            className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 animate-fade-in"
+            aria-label="Flush active search parameters"
+          >
+            <X size={16} className="stroke-[2.5]" />
+          </button>
+        )}
       </div>
 
       {/* Core Component State Pipeline Routing */}
-      {loading ? (
+      {loading && purchases.length === 0 ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2
             size={28}
             className="animate-spin text-amber-600 stroke-[2.5]"
           />
         </div>
-      ) : filteredPurchases.length === 0 ? (
+      ) : purchases.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50/50 py-16 text-center">
           <Truck size={36} className="mx-auto text-slate-300 stroke-[1.5]" />
           <p className="mt-3 text-xs font-bold text-slate-400 uppercase tracking-wider">
@@ -91,8 +118,8 @@ export default function PurchaseList() {
       ) : (
         <div className="space-y-4">
           {/* DESKTOP MATRIX LEDGER HOUSING */}
-          <div className="hidden md:block overflow-hidden bg-white rounded-2xl border border-slate-200/80 shadow-xs">
-            <table className="w-full border-collapse text-left text-sm">
+          <div className="hidden md:flex flex-col overflow-hidden bg-white rounded-2xl border border-slate-200/80 shadow-xs">
+            <table className="w-full border-collapse text-left text-sm flex-1">
               <thead className="bg-slate-50/80 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100">
                 <tr>
                   <th className="px-5 py-3.5">Invoice ID</th>
@@ -105,8 +132,16 @@ export default function PurchaseList() {
                   <th className="px-5 py-3.5 text-center">Audit Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 font-semibold text-slate-600 text-xs">
-                {filteredPurchases.map((purchase) => (
+              <tbody className="divide-y divide-slate-100 font-semibold text-slate-600 text-xs relative">
+                {loading && (
+                  <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
+                    <Loader2
+                      size={24}
+                      className="animate-spin text-amber-600 stroke-[2.5]"
+                    />
+                  </div>
+                )}
+                {purchases.map((purchase) => (
                   <tr
                     key={purchase.id}
                     className="hover:bg-slate-50/50 transition-colors"
@@ -145,11 +180,42 @@ export default function PurchaseList() {
                 ))}
               </tbody>
             </table>
+
+            {/* Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 transition-colors"
+                >
+                  <ChevronLeft size={16} className="stroke-[2.5]" /> Previous
+                </button>
+                <span className="text-xs font-bold text-slate-400 tracking-widest uppercase">
+                  Page {page} of {totalPages}
+                </span>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="flex items-center gap-1 text-xs font-bold text-slate-600 hover:text-slate-900 disabled:opacity-40 transition-colors"
+                >
+                  Next <ChevronRight size={16} className="stroke-[2.5]" />
+                </button>
+              </div>
+            )}
           </div>
 
           {/* MOBILE STREAM SUMMARY CARDS */}
-          <div className="space-y-3 block md:hidden">
-            {filteredPurchases.map((purchase) => (
+          <div className="space-y-3 block md:hidden relative">
+            {loading && (
+              <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-2xl">
+                <Loader2
+                  size={24}
+                  className="animate-spin text-amber-600 stroke-[2.5]"
+                />
+              </div>
+            )}
+            {purchases.map((purchase) => (
               <div
                 key={purchase.id}
                 className="rounded-2xl border border-slate-200/80 bg-white p-4 shadow-xs space-y-3"
@@ -194,6 +260,29 @@ export default function PurchaseList() {
                 </button>
               </div>
             ))}
+
+            {/* Mobile Pagination Controls */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-between pt-4 pb-2 px-1">
+                <button
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                  className="h-10 px-4 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-xs font-bold text-slate-600 active:bg-slate-50 disabled:opacity-40 shadow-xs"
+                >
+                  <ChevronLeft size={16} /> Prev
+                </button>
+                <span className="text-[10px] font-black text-slate-400 tracking-widest uppercase">
+                  Pg {page} / {totalPages}
+                </span>
+                <button
+                  disabled={page >= totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                  className="h-10 px-4 rounded-xl border border-slate-200 bg-white flex items-center justify-center text-xs font-bold text-slate-600 active:bg-slate-50 disabled:opacity-40 shadow-xs"
+                >
+                  Next <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       )}

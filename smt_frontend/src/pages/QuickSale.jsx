@@ -17,13 +17,20 @@ import toast from "react-hot-toast";
 import api from "../api";
 import LoadingSkeleton from "../components/ui/LoadingSkeleton";
 import { formatCurrencyINR } from "../utils/currency";
+import {
+  decimalToNumber,
+  decimalToString,
+  sumDecimalValues,
+  sanitizeDecimalInput,
+} from "../utils/decimal";
 
 const weightPresets = ["0.25", "0.50", "1.00", "2.00"];
 
 function cartLineTotal(item) {
-  const qty = parseFloat(item.quantity) || 0;
-  const price = parseFloat(item.unit_price) || 0;
-  return qty * price;
+  const qty = decimalToNumber(item.quantity);
+  const price = decimalToNumber(item.unit_price);
+  // Integer math to prevent floating point drift
+  return (Math.round(qty * 1000) * Math.round(price * 1000)) / 1000000;
 }
 
 export default function QuickSale() {
@@ -70,7 +77,7 @@ export default function QuickSale() {
   }, [deferredSearchTerm, products]);
 
   const addToCart = (product) => {
-    const stock = parseFloat(product.stock_quantity);
+    const stock = decimalToNumber(product.stock_quantity);
     if (stock <= 0) {
       toast.error(`${product.name} has no available stock`);
       return;
@@ -86,14 +93,14 @@ export default function QuickSale() {
           {
             product: product.id,
             product_name: product.name,
-            quantity: step,
-            unit_price: parseFloat(product.price_per_unit),
+            quantity: String(step),
+            unit_price: decimalToNumber(product.price_per_unit),
             unit: product.unit,
           },
         ];
       }
 
-      const nextQuantity = existing.quantity + step;
+      const nextQuantity = decimalToNumber(existing.quantity) + step;
       if (nextQuantity > stock) {
         toast.error(`Only ${stock} ${product.unit} left in stock`);
         return currentCart;
@@ -101,7 +108,7 @@ export default function QuickSale() {
 
       return currentCart.map((item) =>
         item.product === product.id
-          ? { ...item, quantity: nextQuantity }
+          ? { ...item, quantity: String(nextQuantity) }
           : item,
       );
     });
@@ -117,8 +124,9 @@ export default function QuickSale() {
       return;
     }
 
-    const quantity = parseFloat(newQuantityValue);
-    if (Number.isNaN(quantity) || quantity < 0) return;
+    const cleanValue = sanitizeDecimalInput(newQuantityValue);
+    const quantity = decimalToNumber(cleanValue);
+    if (quantity < 0) return;
 
     if (quantity === 0) {
       removeFromCart(id);
@@ -126,14 +134,14 @@ export default function QuickSale() {
     }
 
     const product = productMap.get(id);
-    if (product && quantity > parseFloat(product.stock_quantity)) {
+    if (product && quantity > decimalToNumber(product.stock_quantity)) {
       toast.error(`Stock ceiling reached: ${product.stock_quantity} Max`);
       return;
     }
 
     setCart((currentCart) =>
       currentCart.map((item) =>
-        item.product === id ? { ...item, quantity } : item,
+        item.product === id ? { ...item, quantity: cleanValue } : item,
       ),
     );
   };
@@ -143,16 +151,17 @@ export default function QuickSale() {
   };
 
   const subtotal = useMemo(() => {
-    return cart.reduce((sum, item) => sum + cartLineTotal(item), 0);
+    const lineTotals = cart.map((item) => cartLineTotal(item));
+    return sumDecimalValues(lineTotals);
   }, [cart]);
 
-  const parsedDiscount = parseFloat(discount) || 0;
+  const parsedDiscount = decimalToNumber(discount);
   const discountAmount = Math.min(parsedDiscount, subtotal);
   const total = subtotal - discountAmount;
 
   const handleCheckout = async () => {
     const hasInvalidQuantities = cart.some(
-      (item) => item.quantity === "" || item.quantity <= 0,
+      (item) => item.quantity === "" || decimalToNumber(item.quantity) <= 0,
     );
     if (hasInvalidQuantities) {
       toast.error("Please enter a valid quantity for all line items");
@@ -175,16 +184,16 @@ export default function QuickSale() {
 
     try {
       await api.post("/sales/", {
-        total_amount: total.toFixed(2),
-        discount_amount: discountAmount.toFixed(2),
+        total_amount: decimalToString(total),
+        discount_amount: decimalToString(discountAmount),
         payment_type: paymentType,
         customer:
           paymentType === "credit" ? parseInt(selectedCustomer, 10) : null,
         items: cart.map((item) => ({
           product: item.product,
-          quantity: parseFloat(item.quantity).toFixed(2),
-          unit_price: item.unit_price.toFixed(2),
-          subtotal: cartLineTotal(item).toFixed(2),
+          quantity: decimalToString(item.quantity),
+          unit_price: decimalToString(item.unit_price),
+          subtotal: decimalToString(cartLineTotal(item)),
         })),
       });
 
@@ -283,7 +292,7 @@ export default function QuickSale() {
       ) : filteredProducts.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
           {filteredProducts.map((product) => {
-            const stock = parseFloat(product.stock_quantity) || 0;
+            const stock = decimalToNumber(product.stock_quantity);
             const isLowStock = stock <= 5 && stock > 0;
             const isOutOfStock = stock <= 0;
 
@@ -406,10 +415,10 @@ export default function QuickSale() {
                               item.unit === "pcs" || item.unit === "box"
                                 ? 1
                                 : 0.25;
-                            const currentQty = parseFloat(item.quantity) || 0;
+                            const currentQty = decimalToNumber(item.quantity);
                             updateQuantity(
                               item.product,
-                              Math.max(0, currentQty - step),
+                              Math.max(0, currentQty - step).toString(),
                             );
                           }}
                           className="flex h-7 w-7 items-center justify-center rounded-md bg-white border border-slate-200 text-slate-600 active:bg-slate-100 shadow-2xs"
@@ -418,12 +427,7 @@ export default function QuickSale() {
                         </button>
 
                         <input
-                          type="number"
-                          step={
-                            item.unit === "pcs" || item.unit === "box"
-                              ? "1"
-                              : "0.25"
-                          }
+                          type="text"
                           value={item.quantity}
                           onChange={(e) =>
                             updateQuantity(item.product, e.target.value)
@@ -437,8 +441,11 @@ export default function QuickSale() {
                               item.unit === "pcs" || item.unit === "box"
                                 ? 1
                                 : 0.25;
-                            const currentQty = parseFloat(item.quantity) || 0;
-                            updateQuantity(item.product, currentQty + step);
+                            const currentQty = decimalToNumber(item.quantity);
+                            updateQuantity(
+                              item.product,
+                              (currentQty + step).toString(),
+                            );
                           }}
                           className="flex h-7 w-7 items-center justify-center rounded-md bg-white border border-slate-200 text-slate-600 active:bg-slate-100 shadow-2xs"
                         >
@@ -476,12 +483,13 @@ export default function QuickSale() {
                   <div className="flex items-center gap-1.5 border border-slate-200 rounded-lg px-2 py-1 bg-slate-50">
                     <span className="text-xs font-bold text-slate-400">₹</span>
                     <input
-                      type="number"
+                      type="text"
                       value={discount}
                       placeholder="0"
-                      onChange={(e) => setDiscount(e.target.value)}
+                      onChange={(e) =>
+                        setDiscount(sanitizeDecimalInput(e.target.value))
+                      }
                       className="w-20 bg-transparent text-right text-xs font-black text-slate-800 focus:outline-none"
-                      min="0"
                     />
                   </div>
                 </div>

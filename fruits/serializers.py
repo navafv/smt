@@ -125,9 +125,12 @@ class SaleSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         items_data = validated_data.pop("items")
         product_ids = [item["product"].id for item in items_data]
+        
         locked_products = {
             product.id: product
-            for product in Product.objects.select_for_update().filter(id__in=product_ids, is_active=True)
+            for product in Product.objects.select_for_update()
+            .filter(id__in=product_ids, is_active=True)
+            .order_by('id') 
         }
 
         sale = Sale.objects.create(**validated_data)
@@ -181,7 +184,7 @@ class PurchaseSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         items_data = validated_data.pop("items")
         product_ids = [item["product"].id for item in items_data]
-        Product.objects.select_for_update().filter(id__in=product_ids)
+        Product.objects.select_for_update().filter(id__in=product_ids).order_by('id')
 
         purchase = Purchase.objects.create(**validated_data)
         purchase_items = []

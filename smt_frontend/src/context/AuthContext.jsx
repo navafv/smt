@@ -1,10 +1,10 @@
-import {
+import React, {
   createContext,
-  useCallback,
   useContext,
-  useEffect,
-  useRef,
   useState,
+  useEffect,
+  useCallback,
+  useRef,
 } from "react";
 import { useNavigate } from "react-router-dom";
 import { jwtDecode } from "jwt-decode";
@@ -12,100 +12,124 @@ import toast from "react-hot-toast";
 import api, { refreshAccessToken, setAccessToken, warmUpBackend } from "../api";
 import LoadingScreen from "../components/LoadingScreen";
 
-const AuthContext = createContext();
+const AuthContext = createContext(null);
 const REFRESH_BUFFER_MS = 60_000;
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
+  const [token, setToken] = useState(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
-  const refreshTimerRef = useRef(null);
 
-  const clearRefreshTimer = useCallback(() => {
-    if (refreshTimerRef.current) {
-      window.clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = null;
+  // Use references to prevent stale closures within event listeners and timeouts
+  const refreshTimeoutRef = useRef(null);
+  const tokenRef = useRef(null);
+  tokenRef.current = token;
+
+  // Clear any existing scheduled execution frames safely
+  const clearRefreshTimeout = useCallback(() => {
+    if (refreshTimeoutRef.current) {
+      window.clearTimeout(refreshTimeoutRef.current);
+      refreshTimeoutRef.current = null;
     }
   }, []);
 
+  // Public logout routine to flush memory allocations and tokens
   const logout = useCallback(
     async ({ redirect = true, silent = false, reason = null } = {}) => {
-      clearRefreshTimer();
+      clearRefreshTimeout();
       try {
+        // Informs backend to blacklist token and flush cookies
         await api.post("/auth/logout/");
       } catch {
-        // Best-effort logout cleanup on server
-      }
+        // Best-effort logout cleanup on server; silent catch to guarantee frontend state clears
+      } finally {
+        setToken(null);
+        setAccessToken(null);
+        setUser(null);
+        localStorage.removeItem("smt_has_session");
 
-      setAccessToken(null);
-      setUser(null);
-      localStorage.removeItem("smt_has_session");
+        if (!silent) {
+          if (reason === "expired") {
+            toast.error("Session expired for security. Please log back in.", {
+              id: "session-expired-toast", // Deduplicates stacked toast views
+              duration: 5000,
+            });
+          } else {
+            toast.success("Logged out securely.");
+          }
+        }
 
-      if (!silent) {
-        if (reason === "expired") {
-          toast.error("Session expired for security. Please log back in.", {
-            id: "session-expired-toast", // Deduplicates stacked toast views
-            duration: 5000,
+        if (redirect) {
+          navigate(reason ? `/login?reason=${reason}` : "/login", {
+            replace: true,
           });
-        } else {
-          toast.success("Logged out securely.");
         }
       }
-
-      if (redirect) {
-        navigate(reason ? `/login?reason=${reason}` : "/login", {
-          replace: true,
-        });
-      }
     },
-    [clearRefreshTimer, navigate],
+    [clearRefreshTimeout, navigate],
   );
 
+  // Proactively requests a new access token using the HttpOnly refresh cookie
+  const performTokenRefresh = useCallback(async () => {
+    try {
+      const newToken = await refreshAccessToken();
+      const decoded = jwtDecode(newToken);
+
+      setToken(newToken);
+      setAccessToken(newToken);
+      setUser(decoded);
+
+      // Schedule the next auto-refresh cascade sequence
+      scheduleRefresh(newToken);
+      return newToken;
+    } catch (error) {
+      // Failing to refresh implies an expired or blacklisted cookie session state
+      if (!window.navigator.onLine) {
+        toast.error("Network connection unstable. Retrying connection...", {
+          id: "net-retry",
+        });
+        // Optional: you could implement a retry-backoff here instead of logging out
+      } else {
+        await logout({ redirect: true, silent: false, reason: "expired" });
+      }
+      return null;
+    }
+  }, [logout]); // Removed scheduleRefresh from dependency array to prevent circular dependency warnings if it's hoisted
+
+  // Calculates remaining token validity lifespan and schedules a standard macro task
   const scheduleRefresh = useCallback(
     (accessToken) => {
-      clearRefreshTimer();
+      clearRefreshTimeout();
+      if (!accessToken) return;
+
       try {
         const decoded = jwtDecode(accessToken);
+        // Calculate delay in ms, subtracting the buffer
         const delay = Math.max(
           decoded.exp * 1000 - Date.now() - REFRESH_BUFFER_MS,
           0,
         );
 
-        refreshTimerRef.current = window.setTimeout(async () => {
-          try {
-            const token = await refreshAccessToken();
-            const refreshedUser = jwtDecode(token);
-            setAccessToken(token);
-            setUser(refreshedUser);
-            scheduleRefresh(token);
-          } catch (err) {
-            // Check if failure is due to a network offline state or an invalid token
-            if (!window.navigator.onLine) {
-              // Retry mechanism if store internet drops temporarily
-              toast.error(
-                "Network connection unstable. Retrying connection...",
-                { id: "net-retry" },
-              );
-              setTimeout(() => scheduleRefresh(accessToken), 10000);
-            } else {
-              await logout({
-                redirect: true,
-                silent: false,
-                reason: "expired",
-              });
-            }
-          }
-        }, delay);
+        if (delay > 0) {
+          refreshTimeoutRef.current = window.setTimeout(() => {
+            performTokenRefresh();
+          }, delay);
+        } else {
+          // If buffer window is already breached, refresh immediately
+          performTokenRefresh();
+        }
       } catch {
         logout({ redirect: true, silent: false, reason: "expired" });
       }
     },
-    [clearRefreshTimer, logout],
+    [clearRefreshTimeout, performTokenRefresh, logout],
   );
 
   const setupUserFromToken = useCallback(
     (accessToken) => {
       const decoded = jwtDecode(accessToken);
+      setToken(accessToken);
       setAccessToken(accessToken);
       setUser(decoded);
       scheduleRefresh(accessToken);
@@ -114,6 +138,28 @@ export const AuthProvider = ({ children }) => {
     [scheduleRefresh],
   );
 
+  // Synchronous evaluator for foreground tab synchronization loops
+  const syncTabVisibility = useCallback(() => {
+    if (document.visibilityState === "visible" && tokenRef.current) {
+      try {
+        const decoded = jwtDecode(tokenRef.current);
+        const currentTime = Date.now();
+
+        // CRITICAL FIX: If tab throttling paused JavaScript execution and the token
+        // is now close to expiration or dead, force an immediate proactive refresh.
+        if (decoded.exp * 1000 - currentTime <= REFRESH_BUFFER_MS) {
+          performTokenRefresh();
+        } else {
+          // Re-synchronize normal macro timing queues if token is still valid
+          scheduleRefresh(tokenRef.current);
+        }
+      } catch {
+        logout({ redirect: true, silent: false, reason: "expired" });
+      }
+    }
+  }, [performTokenRefresh, scheduleRefresh, logout]);
+
+  // Bootstraps initialization and monitors visibility api cycles
   useEffect(() => {
     let cancelled = false;
 
@@ -127,15 +173,16 @@ export const AuthProvider = ({ children }) => {
 
       try {
         await warmUpBackend();
-        const token = await refreshAccessToken();
-        if (!cancelled) {
-          setupUserFromToken(token);
+        const initialToken = await refreshAccessToken();
+        if (!cancelled && initialToken) {
+          setupUserFromToken(initialToken);
         }
       } catch (error) {
         if (error.response?.status !== 401) {
           console.error("Auth initialization failed:", error);
         }
         if (!cancelled) {
+          setToken(null);
           setAccessToken(null);
           setUser(null);
         }
@@ -148,11 +195,15 @@ export const AuthProvider = ({ children }) => {
 
     initAuth();
 
+    // Attach listeners to neutralize mobile background sleep execution models
+    document.addEventListener("visibilitychange", syncTabVisibility);
+
     return () => {
       cancelled = true;
-      clearRefreshTimer();
+      clearRefreshTimeout();
+      document.removeEventListener("visibilitychange", syncTabVisibility);
     };
-  }, [clearRefreshTimer, setupUserFromToken]);
+  }, [clearRefreshTimeout, syncTabVisibility, setupUserFromToken]);
 
   // Handle global interceptor logouts safely with explicit UX notification feedback
   useEffect(() => {
@@ -164,8 +215,8 @@ export const AuthProvider = ({ children }) => {
     };
   }, [logout]);
 
+  // Public login routine exposed to forms
   const login = async (username, password, redirectTo = "/dashboard") => {
-    // Capitalize user styling natively for standard notification layouts
     const cleanName = username.charAt(0).toUpperCase() + username.slice(1);
 
     try {

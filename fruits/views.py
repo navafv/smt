@@ -121,14 +121,16 @@ class CustomerPaymentViewSet(viewsets.ModelViewSet):
     @transaction.atomic
     def perform_create(self, serializer):
         payment = serializer.save()
+        total_deduction = payment.amount + payment.discount_amount
         Customer.objects.filter(pk=payment.customer_id).update(
-            balance=F("balance") - payment.amount
+            balance=F("balance") - total_deduction
         )
 
     @transaction.atomic
     def perform_destroy(self, instance):
+        total_deduction = instance.amount + instance.discount_amount
         Customer.objects.filter(pk=instance.customer_id).update(
-            balance=F("balance") + instance.amount
+            balance=F("balance") + total_deduction
         )
         instance.delete()
 
@@ -198,6 +200,7 @@ class ReportView(APIView):
 
         filters_q = Q(created_at__date__range=[start_date, end_date])
         expense_filters = Q(date__range=[start_date, end_date])
+        payment_filters = Q(date__date__range=[start_date, end_date])
 
         sales_sum = Sale.objects.filter(filters_q).aggregate(total=Sum("total_amount"))["total"] or 0
         purchases_sum = Purchase.objects.filter(filters_q).aggregate(total=Sum("total_amount"))["total"] or 0
@@ -206,7 +209,11 @@ class ReportView(APIView):
             StockReturn.objects.filter(filters_q, return_type="wastage").aggregate(total=Sum("loss_amount"))["total"]
             or 0
         )
-        net_profit = sales_sum - (purchases_sum + expenses_sum + wastage_sum)
+        debt_forgiven_sum = CustomerPayment.objects.filter(payment_filters).aggregate(
+            total=Sum("discount_amount")
+        )["total"] or 0
+        
+        net_profit = sales_sum - (purchases_sum + expenses_sum + wastage_sum + debt_forgiven_sum)
 
         sales_qs = (
             Sale.objects.filter(filters_q)
@@ -223,6 +230,7 @@ class ReportView(APIView):
                     "purchases": purchases_sum,
                     "expenses": expenses_sum,
                     "wastage": wastage_sum,
+                    "debt_forgiven": debt_forgiven_sum,
                     "net_profit": net_profit,
                 },
                 "details": {"sales_list": sales_list},

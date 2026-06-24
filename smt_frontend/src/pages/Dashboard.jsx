@@ -108,7 +108,8 @@ export default function Dashboard() {
   const wastage = data?.today?.wastage || 0;
   const sales = data?.today?.sales || 0;
   const purchases = data?.today?.purchases || 0;
-  const leakage = expenses + wastage;
+  const debtForgiven = data?.today?.debt_forgiven || 0;
+  const leakage = expenses + wastage + debtForgiven;
 
   return (
     <div className="space-y-6 animate-fade-in select-none">

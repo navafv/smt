@@ -7,6 +7,7 @@ import {
   TrendingDown,
   TrendingUp,
   Wallet,
+  Tag,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import api from "../api";
@@ -17,27 +18,22 @@ function SummaryCard({ title, value, icon, color }) {
   const isPositive = value >= 0;
 
   return (
-    <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 transition-all hover:shadow-md hover:border-slate-300/60">
-      <div className="flex items-center justify-between">
-        <div className="space-y-1.5">
-          <p className="text-[11px] text-slate-400 font-extrabold uppercase tracking-wider">
+    <div className="bg-white rounded-2xl p-5 shadow-xs border border-slate-200/80 transition-all hover:shadow-md hover:border-slate-300/60 flex flex-col justify-between">
+      <div className="flex items-start justify-between mb-2">
+        <div className="space-y-1.5 pr-2">
+          <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wider leading-tight">
             {title}
-          </p>
-          <p
-            className={`text-xl md:text-2xl font-black tracking-tight ${color || "text-slate-900"}`}
-          >
-            ₹{value?.toLocaleString() || 0}
           </p>
         </div>
         <div
-          className={`h-11 w-11 rounded-xl flex items-center justify-center border transition-colors ${
+          className={`shrink-0 h-10 w-10 rounded-xl flex items-center justify-center border transition-colors ${
             isPositive
               ? "bg-emerald-50/60 border-emerald-100"
               : "bg-rose-50/60 border-rose-100"
           }`}
         >
           <Icon
-            size={18}
+            size={16}
             className={
               isPositive
                 ? "text-emerald-600 stroke-[2.5]"
@@ -46,6 +42,11 @@ function SummaryCard({ title, value, icon, color }) {
           />
         </div>
       </div>
+      <p
+        className={`text-xl md:text-2xl font-black tracking-tight truncate ${color || "text-slate-900"}`}
+      >
+        ₹{value?.toLocaleString() || 0}
+      </p>
     </div>
   );
 }
@@ -99,9 +100,11 @@ export default function Reports() {
 
   const totalOutflow = useMemo(() => {
     return (
-      (parseFloat(summary.expenses) || 0) + (parseFloat(summary.wastage) || 0)
+      (parseFloat(summary.expenses) || 0) +
+      (parseFloat(summary.wastage) || 0) +
+      (parseFloat(summary.debt_forgiven) || 0)
     );
-  }, [summary.expenses, summary.wastage]);
+  }, [summary.expenses, summary.wastage, summary.debt_forgiven]);
 
   const netProfit = useMemo(
     () => parseFloat(summary.net_profit) || 0,
@@ -220,9 +223,9 @@ export default function Reports() {
 
       {/* Skeleton Frame Loader Framework */}
       {loading && !reportData && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <LoadingSkeleton key={i} className="h-24 rounded-2xl" />
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <LoadingSkeleton key={i} className="h-28 rounded-2xl" />
           ))}
         </div>
       )}
@@ -230,8 +233,8 @@ export default function Reports() {
       {/* Main Reporting Block Output */}
       {reportData && (
         <div className="space-y-6">
-          {/* Metrics Summary Grid Matrix */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          {/* Metrics Summary Grid Matrix - Expanded to 5 columns */}
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
             <SummaryCard
               title="Gross Receipts"
               value={summary.sales}
@@ -239,16 +242,22 @@ export default function Reports() {
               color="text-slate-900"
             />
             <SummaryCard
-              title="Operational Outflow"
+              title="Calculated Margin"
+              value={netProfit}
+              icon={TrendingUp}
+              color={netProfit >= 0 ? "text-emerald-600" : "text-rose-600"}
+            />
+            <SummaryCard
+              title="Total Outflow"
               value={totalOutflow}
               icon={Wallet}
               color="text-rose-600"
             />
             <SummaryCard
-              title="Calculated Margin"
-              value={netProfit}
-              icon={TrendingUp}
-              color={netProfit >= 0 ? "text-emerald-600" : "text-rose-600"}
+              title="Debt Forgiven"
+              value={summary.debt_forgiven}
+              icon={Tag}
+              color="text-blue-600"
             />
             <SummaryCard
               title="Wastage Appraisals"

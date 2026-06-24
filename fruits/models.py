@@ -97,6 +97,7 @@ class Sale(models.Model):
     )
     discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    previous_balance = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     payment_type = models.CharField(
         max_length=10,
         choices=PAYMENT_CHOICES,
@@ -178,10 +179,11 @@ class PurchaseItem(models.Model):
 
 
 class CustomerPayment(models.Model):
-    """Tracking when customers pay off their credit debt."""
+    """Tracking when customers pay off their credit debt or when debt is forgiven."""
 
     customer = models.ForeignKey(Customer, related_name="payments", on_delete=models.CASCADE)
-    amount = models.DecimalField(max_digits=12, decimal_places=2)
+    amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    discount_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     date = models.DateTimeField(auto_now_add=True, db_index=True)
     note = models.CharField(max_length=255, blank=True)
 
@@ -190,7 +192,7 @@ class CustomerPayment(models.Model):
 
     def __str__(self):
         customer_name = self.customer.name if self.customer_id and self.customer else "Deleted customer"
-        return f"Customer payment from {customer_name} - Rs. {self.amount}"
+        return f"Customer payment from {customer_name} - Cash: Rs. {self.amount} | Discount: Rs. {self.discount_amount}"
 
 
 class SupplierPayment(models.Model):

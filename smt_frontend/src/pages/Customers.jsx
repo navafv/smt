@@ -22,7 +22,10 @@ export default function Customers() {
     name: "",
     address: "",
   });
+
+  // Separate states for cash and discounts
   const [payAmount, setPayAmount] = useState("");
+  const [discountAmount, setDiscountAmount] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const fetchCustomers = async () => {
@@ -70,8 +73,13 @@ export default function Customers() {
 
   const handlePayment = async (event) => {
     event.preventDefault();
-    if (!payAmount || Number(payAmount) <= 0) {
-      toast.error("Invalid transaction: Allocation quantity must be non-zero");
+    const cash = Number(payAmount) || 0;
+    const discount = Number(discountAmount) || 0;
+
+    if (cash <= 0 && discount <= 0) {
+      toast.error(
+        "Invalid transaction: Please assign a cash or discount value.",
+      );
       return;
     }
 
@@ -80,16 +88,30 @@ export default function Customers() {
     try {
       await api.post("/customer-payments/", {
         customer: showPayModal.id,
-        amount: payAmount,
+        amount: cash.toFixed(2),
+        discount_amount: discount.toFixed(2),
       });
-      toast.success(
-        `Settled ${formatCurrencyINR(payAmount)} to account of ${showPayModal.name}`,
-      );
+
+      if (cash > 0 && discount > 0) {
+        toast.success(
+          `Collected ${formatCurrencyINR(cash)} and forgave ${formatCurrencyINR(discount)} for ${showPayModal.name}`,
+        );
+      } else if (cash > 0) {
+        toast.success(
+          `Settled ${formatCurrencyINR(cash)} to account of ${showPayModal.name}`,
+        );
+      } else {
+        toast.success(
+          `Forgave ${formatCurrencyINR(discount)} from account of ${showPayModal.name}`,
+        );
+      }
+
       setShowPayModal(null);
       setPayAmount("");
+      setDiscountAmount("");
       fetchCustomers();
     } catch {
-      toast.error("Financial ledger ledger updates rejected by processor");
+      toast.error("Financial ledger updates rejected by processor");
     } finally {
       setIsSubmitting(false);
     }
@@ -186,10 +208,14 @@ export default function Customers() {
                       </td>
                       <td className="px-5 py-3 text-center">
                         <button
-                          onClick={() => setShowPayModal(customer)}
+                          onClick={() => {
+                            setShowPayModal(customer);
+                            setPayAmount("");
+                            setDiscountAmount("");
+                          }}
                           className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 font-bold text-slate-700 transition-all hover:bg-slate-50 active:scale-98 text-[11px]"
                         >
-                          <span>Process Remittance</span>
+                          <span>Adjust Balance</span>
                           <ArrowRight size={12} className="stroke-[2.5]" />
                         </button>
                       </td>
@@ -237,10 +263,14 @@ export default function Customers() {
                   </div>
 
                   <button
-                    onClick={() => setShowPayModal(customer)}
+                    onClick={() => {
+                      setShowPayModal(customer);
+                      setPayAmount("");
+                      setDiscountAmount("");
+                    }}
                     className="flex w-full items-center justify-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50/60 py-2.5 text-xs font-bold text-slate-700 transition-all active:bg-slate-100"
                   >
-                    <span>Receive Payment</span>
+                    <span>Adjust Account Balance</span>
                     <ArrowRight size={13} className="stroke-[2.5]" />
                   </button>
                 </div>
@@ -331,42 +361,80 @@ export default function Customers() {
         </div>
       )}
 
-      {/* CORE FRAME LAYOUT COMPONENT: RECEIVABLES SETTLEMENT DIALOG */}
+      {/* DUAL INPUT RECEIVABLES SETTLEMENT DIALOG */}
       {showPayModal && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-950/40 backdrop-blur-xs sm:items-center p-0 sm:p-4">
           <div className="w-full max-w-sm rounded-t-2xl sm:rounded-2xl bg-white shadow-xl border border-slate-100 transform animate-slide-up overflow-hidden">
             <div className="border-b border-slate-100 p-5 text-center bg-slate-50/40">
               <h2 className="text-xs font-black uppercase text-slate-900 tracking-wider">
-                Record Account Remittance
+                Adjust Account Balance
               </h2>
               <p className="mt-1 text-sm font-extrabold text-slate-500">
                 {showPayModal.name}
               </p>
+              <p className="text-[10px] font-bold text-rose-500 mt-1 uppercase tracking-widest">
+                Owes: {formatCurrencyINR(showPayModal.balance)}
+              </p>
             </div>
 
             <form onSubmit={handlePayment} className="space-y-4 p-5">
-              <div className="space-y-1.5">
-                <label className="text-[10px] font-black uppercase text-slate-400 tracking-wider block text-center">
-                  Calculated Amount Settled (INR)
-                </label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 font-black text-slate-400 text-lg">
-                    ₹
-                  </span>
-                  <input
-                    type="number"
-                    autoFocus
-                    required
-                    step="0.01"
-                    placeholder="0.00"
-                    className="w-full rounded-xl border border-slate-200 pl-8 pr-4 py-3.5 text-center text-xl font-black text-slate-900 outline-none transition-all focus:border-emerald-500 focus:ring-4 focus:ring-emerald-500/10 bg-slate-50/20 tracking-tight"
-                    value={payAmount}
-                    onChange={(event) => setPayAmount(event.target.value)}
-                  />
+              <div className="grid grid-cols-2 gap-3">
+                {/* Cash Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-emerald-600 tracking-wider block text-center">
+                    Cash Collected
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-emerald-400">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      autoFocus
+                      step="0.01"
+                      placeholder="0.00"
+                      className="w-full rounded-xl border border-slate-200 pl-6 pr-2 py-3 text-center text-sm font-black text-slate-900 outline-none transition-all focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 bg-emerald-50/30"
+                      value={payAmount}
+                      onChange={(event) => setPayAmount(event.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Discount Input */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-black uppercase text-amber-500 tracking-wider block text-center">
+                    Debt Forgiven
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 font-black text-amber-400">
+                      ₹
+                    </span>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="0.00"
+                      className="w-full rounded-xl border border-slate-200 pl-6 pr-2 py-3 text-center text-sm font-black text-slate-900 outline-none transition-all focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 bg-amber-50/30"
+                      value={discountAmount}
+                      onChange={(event) =>
+                        setDiscountAmount(event.target.value)
+                      }
+                    />
+                  </div>
                 </div>
               </div>
 
-              <div className="flex gap-3 pt-2">
+              <div className="text-center pt-2">
+                <p className="text-[10px] font-black uppercase text-slate-400">
+                  Total Account Deduction
+                </p>
+                <p className="text-lg font-black text-slate-900 font-mono">
+                  {formatCurrencyINR(
+                    (Number(payAmount) || 0) + (Number(discountAmount) || 0),
+                  )}
+                </p>
+              </div>
+
+              <div className="flex gap-3 pt-2 border-t border-slate-100">
                 <button
                   type="button"
                   onClick={() => setShowPayModal(null)}
@@ -377,12 +445,12 @@ export default function Customers() {
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="flex flex-1 items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 py-3 text-xs font-bold text-white transition-all active:scale-95 shadow-sm disabled:opacity-50"
+                  className="flex flex-1 items-center justify-center rounded-xl bg-slate-950 hover:bg-slate-850 py-3 text-xs font-bold text-white transition-all active:scale-95 shadow-sm disabled:opacity-50"
                 >
                   {isSubmitting ? (
                     <Loader2 size={15} className="animate-spin stroke-[2.5]" />
                   ) : (
-                    "Authorize Adjustment"
+                    "Authorize Update"
                   )}
                 </button>
               </div>

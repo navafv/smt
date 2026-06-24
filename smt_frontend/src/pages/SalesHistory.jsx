@@ -55,7 +55,7 @@ export default function SalesHistory() {
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
-    setPage(1); // Reset to first page on new query
+    setPage(1);
   };
 
   const formatDate = (dateString) => new Date(dateString).toLocaleString();
@@ -122,7 +122,6 @@ export default function SalesHistory() {
 
   return (
     <div className="space-y-5 pb-24 select-none animate-fade-in">
-      {/* Structural Page Header */}
       <div className="border-b border-slate-100 pb-3">
         <h1 className="text-xl font-black text-slate-900 tracking-tight">
           Sales Register
@@ -132,7 +131,6 @@ export default function SalesHistory() {
         </p>
       </div>
 
-      {/* Query Search Architecture */}
       <div className="relative">
         <Search
           size={16}
@@ -159,7 +157,6 @@ export default function SalesHistory() {
         )}
       </div>
 
-      {/* Main Viewport Content Manager */}
       {loading && sales.length === 0 ? (
         <div className="flex h-64 items-center justify-center">
           <Loader2
@@ -175,7 +172,6 @@ export default function SalesHistory() {
         </div>
       ) : (
         <>
-          {/* DESKTOP METRIC LAYOUT */}
           <div className="hidden md:flex flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-xs">
             <table className="w-full border-collapse text-left text-sm flex-1">
               <thead className="bg-slate-50 text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-200">
@@ -252,7 +248,6 @@ export default function SalesHistory() {
               </tbody>
             </table>
 
-            {/* Pagination Controls */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between px-6 py-4 border-t border-slate-100 bg-slate-50/50">
                 <button
@@ -276,7 +271,6 @@ export default function SalesHistory() {
             )}
           </div>
 
-          {/* MOBILE INTERACTIVE CARDS */}
           <div className="space-y-3 block md:hidden relative">
             {loading && (
               <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center rounded-2xl">
@@ -331,7 +325,6 @@ export default function SalesHistory() {
               </button>
             ))}
 
-            {/* Mobile Pagination Controls */}
             {totalPages > 1 && (
               <div className="flex items-center justify-between pt-4 pb-2 px-1">
                 <button
@@ -357,10 +350,8 @@ export default function SalesHistory() {
         </>
       )}
 
-      {/* Global Ledger Details Modal Backdrop */}
       {selectedSale && (
         <div className="fixed inset-0 z-50 flex items-end justify-center bg-slate-900/60 p-4 backdrop-blur-xs sm:items-center">
-          {/* Print Isolation Architecture Stylesheet injection */}
           <style
             dangerouslySetInnerHTML={{
               __html: `
@@ -376,7 +367,6 @@ export default function SalesHistory() {
           />
 
           <div className="animate-slide-up flex max-h-[85vh] w-full max-w-md flex-col rounded-t-2xl bg-white shadow-xl sm:rounded-2xl border border-slate-200">
-            {/* Modal Header Actions */}
             <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 bg-slate-50 rounded-t-2xl">
               <h2 className="font-extrabold text-slate-900 text-sm uppercase tracking-wider">
                 Receipt Identity Voucher
@@ -390,7 +380,6 @@ export default function SalesHistory() {
               </button>
             </div>
 
-            {/* Document Print Area Enclosure */}
             <div className="flex-1 overflow-y-auto p-5 custom-scrollbar">
               <div
                 ref={receiptRef}
@@ -407,19 +396,19 @@ export default function SalesHistory() {
 
                 <div className="space-y-2 border-b border-slate-100 py-4 font-semibold text-xs text-slate-600">
                   <div className="flex justify-between">
-                    <span>Voucher Index Reference</span>
+                    <span>Voucher Index</span>
                     <span className="font-extrabold text-slate-900">
                       #{selectedSale.id}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Committed Date</span>
+                    <span>Date</span>
                     <span className="text-slate-800 font-bold">
                       {formatDate(selectedSale.created_at)}
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Identified Receiver</span>
+                    <span>Customer</span>
                     <span className="text-slate-800 font-bold">
                       {selectedSale.customer_name || "Walk-in Buyer"}
                     </span>
@@ -480,6 +469,38 @@ export default function SalesHistory() {
                   </div>
                 </div>
 
+                {selectedSale.payment_type === "credit" &&
+                  selectedSale.customer_name && (
+                    <div className="border-t-2 border-dashed border-slate-200 mt-4 pt-4 space-y-2 text-xs font-semibold text-slate-600">
+                      <h3 className="text-[10px] font-black uppercase tracking-wider text-slate-400 mb-2">
+                        Credit Account Summary
+                      </h3>
+                      <div className="flex justify-between">
+                        <span>Previous Balance</span>
+                        <span className="font-bold text-slate-700">
+                          {formatCurrencyINR(
+                            selectedSale.previous_balance || 0,
+                          )}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span>Current Bill Amount</span>
+                        <span className="font-bold text-amber-600">
+                          +{formatCurrencyINR(selectedSale.total_amount)}
+                        </span>
+                      </div>
+                      <div className="flex justify-between border-t border-slate-200 pt-2 text-sm font-black text-slate-900">
+                        <span>Total Outstanding Balance</span>
+                        <span className="text-rose-600">
+                          {formatCurrencyINR(
+                            Number(selectedSale.previous_balance || 0) +
+                              Number(selectedSale.total_amount),
+                          )}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                 <div className="border-t border-slate-100 mt-4 pt-4 text-center space-y-1">
                   <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
                     Settled Protocol: {selectedSale.payment_type}
@@ -491,7 +512,6 @@ export default function SalesHistory() {
               </div>
             </div>
 
-            {/* Document Distribution Node Action Area */}
             <div className="flex gap-3 border-t border-slate-100 bg-slate-50 p-4 rounded-b-2xl no-print">
               <button
                 onClick={handlePrint}

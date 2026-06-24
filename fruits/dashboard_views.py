@@ -6,7 +6,7 @@ from django.db.models import Sum, F, DecimalField
 from django.db.models.functions import Coalesce, TruncDay
 from datetime import timedelta
 
-from .models import Sale, Purchase, Expense, StockReturn, Product
+from .models import Sale, Purchase, Expense, StockReturn, Product, CustomerPayment
 
 class DashboardSummaryView(APIView):
     """
@@ -37,10 +37,14 @@ class DashboardSummaryView(APIView):
             "wastage": StockReturn.objects.filter(created_at__date=today, return_type='wastage').aggregate(
                 total=Coalesce(Sum('loss_amount'), 0, output_field=DecimalField())
             )['total'],
+            
+            "debt_forgiven": CustomerPayment.objects.filter(date__date=today).aggregate(
+                total=Coalesce(Sum('discount_amount'), 0, output_field=DecimalField())
+            )['total'],
         }
         
         profit_today = finance_qs["sales"] - (
-            finance_qs["purchases"] + finance_qs["expenses"] + finance_qs["wastage"]
+            finance_qs["purchases"] + finance_qs["expenses"] + finance_qs["wastage"] + finance_qs["debt_forgiven"]
         )
 
         # 2. 30-Day Sales Trend (For Recharts)

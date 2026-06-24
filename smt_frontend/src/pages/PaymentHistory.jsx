@@ -217,11 +217,20 @@ export default function PaymentHistory() {
                         </span>
                       )}
                     </td>
-                    <td
-                      className={`px-5 py-3.5 text-right font-black font-mono text-sm ${isCustomerMode ? "text-emerald-600" : "text-rose-600"}`}
-                    >
-                      {isCustomerMode ? "+" : "-"}{" "}
-                      {formatCurrencyINR(payment.amount)}
+                    <td className="px-5 py-3.5 text-right flex flex-col items-end justify-center">
+                      <p
+                        className={`font-black font-mono text-sm ${isCustomerMode ? "text-emerald-600" : "text-rose-600"}`}
+                      >
+                        {isCustomerMode ? "+" : "-"}{" "}
+                        {formatCurrencyINR(payment.amount)}
+                      </p>
+                      {/* NEW: Render discount/forgiven amount in desktop table */}
+                      {isCustomerMode &&
+                        Number(payment.discount_amount) > 0 && (
+                          <p className="text-[10px] font-bold text-amber-500 bg-amber-50 border border-amber-100 px-1.5 py-0.5 rounded mt-1">
+                            Forgave {formatCurrencyINR(payment.discount_amount)}
+                          </p>
+                        )}
                     </td>
                   </tr>
                 ))}
@@ -262,6 +271,13 @@ export default function PaymentHistory() {
                       {isCustomerMode ? "+" : "-"}
                       {formatCurrencyINR(payment.amount)}
                     </p>
+                    {/* NEW: Render discount for mobile card view */}
+                    {isCustomerMode && Number(payment.discount_amount) > 0 && (
+                      <p className="text-[9px] font-black uppercase text-amber-500 tracking-wider mt-1">
+                        + {formatCurrencyINR(payment.discount_amount)}{" "}
+                        Written-off
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>

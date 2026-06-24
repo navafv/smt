@@ -87,10 +87,12 @@ class SaleSerializer(serializers.ModelSerializer):
             "discount_amount",
             "subtotal_amount",
             "total_amount",
+            "previous_balance",
             "payment_type",
             "items",
             "created_at",
         ]
+        read_only_fields = ["previous_balance"]
 
     @staticmethod
     def _quantize_amount(value):
@@ -124,8 +126,17 @@ class SaleSerializer(serializers.ModelSerializer):
     @transaction.atomic
     def create(self, validated_data):
         items_data = validated_data.pop("items")
-        product_ids = [item["product"].id for item in items_data]
+        customer = validated_data.get("customer")
+        payment_type = validated_data.get("payment_type")
         
+        # Snapshot customer balance securely before modifying it
+        if payment_type == "credit" and customer:
+            locked_customer = Customer.objects.select_for_update().get(pk=customer.pk)
+            validated_data["previous_balance"] = locked_customer.balance
+        else:
+            validated_data["previous_balance"] = Decimal("0.00")
+
+        product_ids = [item["product"].id for item in items_data]
         locked_products = {
             product.id: product
             for product in Product.objects.select_for_update()
@@ -155,8 +166,8 @@ class SaleSerializer(serializers.ModelSerializer):
 
         SaleItem.objects.bulk_create(sale_items)
 
-        if sale.payment_type == "credit" and sale.customer_id:
-            Customer.objects.filter(pk=sale.customer_id).update(
+        if payment_type == "credit" and customer:
+            Customer.objects.filter(pk=customer.pk).update(
                 balance=F("balance") + sale.total_amount
             )
 
@@ -216,10 +227,16 @@ class CustomerPaymentSerializer(serializers.ModelSerializer):
         model = CustomerPayment
         fields = "__all__"
 
-    def validate_amount(self, value):
-        if value <= 0:
-            raise serializers.ValidationError("Amount must be greater than zero.")
-        return value
+    def validate(self, data):
+        amount = data.get('amount', Decimal("0"))
+        discount = data.get('discount_amount', Decimal("0"))
+        
+        if amount <= 0 and discount <= 0:
+            raise serializers.ValidationError("Must provide a cash payment amount or a discount amount.")
+        if amount < 0 or discount < 0:
+            raise serializers.ValidationError("Amounts cannot be negative.")
+            
+        return data
 
 
 class SupplierPaymentSerializer(serializers.ModelSerializer):
